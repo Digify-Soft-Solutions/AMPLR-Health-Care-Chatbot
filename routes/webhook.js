@@ -42,9 +42,6 @@ router.get('/', (req, res) => {
 router.post('/', async (req, res) => {
     console.log('[Incoming Webhook Payload]:', JSON.stringify(req.body));
 
-    // Fast-ack webhook request to prevent AutobotChat / Meta from timing out
-    res.status(200).json({ status: 'Processing' });
-
     try {
         const body = req.body || {};
 
@@ -57,8 +54,9 @@ router.post('/', async (req, res) => {
 
         if (isDeliveryReceipt) {
             console.log('[Webhook] Status report / delivery receipt received & ignored.');
-            return;
+            return res.status(200).json({ status: 'ignored' });
         }
+
 
         // 2. Deduplicate incoming webhooks using message ID (only for real message payloads)
         const msgId = body.id || target.id || target.whts_ref_id || (target.context ? target.context.id : null);
@@ -138,7 +136,7 @@ router.post('/', async (req, res) => {
 
         if (!senderPhone || (!messageText && !payloadData)) {
             console.log('[Webhook] Missing senderPhone or message content in payload.');
-            return;
+            return res.status(200).json({ status: 'missing_data' });
         }
 
         // Clean phone number format
@@ -159,10 +157,14 @@ router.post('/', async (req, res) => {
         const result = await sendWhatsAppMessage(senderPhone, botResponse);
         console.log(`[Webhook Response Dispatch Result]:`, result);
 
+        return res.status(200).json({ status: 'success', result });
+
     } catch (error) {
         console.error('[Webhook Processing Error]:', error);
+        return res.status(200).json({ status: 'error', message: error.message });
     }
 });
+
 
 export default router;
 
