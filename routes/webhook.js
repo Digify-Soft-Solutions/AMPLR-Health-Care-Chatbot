@@ -102,27 +102,17 @@ router.post('/', async (req, res) => {
         // Extract nested payload if AutobotChat wraps payload in `data` or `payload` or `result`
         const target = body.data || body.payload || body.result || body;
 
-        // 1. Strictly ignore delivery receipts, read events, status updates, or outbound bot echoes
-        const isStatusOrEcho = (
-            body.event === 'DELIVERY' || body.event === 'READ' || body.event === 'SENT' ||
-            body.status === 'read' || body.status === 'delivered' || body.status === 'sent' ||
-            target.status === 'read' || target.status === 'delivered' || target.status === 'sent' ||
-            body.statuses || target.statuses || body.type === 'status' || target.type === 'status' ||
-            body.delivery_time || target.delivery_time || body.template_id || target.template_id ||
-            body.from_me === true || target.from_me === true || target.is_outbound === true || body.direction === 'outbound'
+        // 1. Strictly ignore if this is an empty status update (delivery/read receipt without any message body)
+        const isExplicitDeliveryWithoutText = (
+            (body.event === 'DELIVERY' || body.event === 'READ' || body.event === 'SENT' || body.statuses || target.statuses) &&
+            !body.text && !body.message && !body.entry && !target.text && !target.message && !target.interactive && !target.body
         );
 
-        if (isStatusOrEcho) {
-            console.log('[Webhook] Status report / delivery receipt / bot echo ignored.');
+        if (isExplicitDeliveryWithoutText) {
+            console.log('[Webhook] Empty status report / delivery receipt ignored.');
             return res.status(200).json({ status: 'ignored' });
         }
 
-        // 2. Deduplicate incoming webhooks using message ID
-        const msgId = body.id || target.id || target.whts_ref_id || (target.context ? target.context.id : null);
-        if (msgId && isDuplicateMessage(msgId)) {
-            console.log(`[Webhook] Ignored duplicate webhook for Message ID: ${msgId}`);
-            return res.status(200).json({ status: 'duplicate_ignored' });
-        }
 
 
         let senderPhone = null;
@@ -203,10 +193,12 @@ router.post('/', async (req, res) => {
         senderPhone = senderPhone.toString().trim();
 
         // 3. Strict Phone + Content Serverless Deduplication (Prevents double dispatch)
+        const msgId = body.id || target.id || target.whts_ref_id || (target.context ? target.context.id : null);
         if (isDuplicateServerlessMessage(senderPhone, messageText || payloadData, msgId)) {
             console.log(`[Webhook Duplicate Dropped] Ignored duplicate message for ${senderPhone}: "${messageText || payloadData}"`);
             return res.status(200).json({ status: 'duplicate_dropped' });
         }
+
 
 
         // Extract patient display name if provided by WhatsApp webhook
