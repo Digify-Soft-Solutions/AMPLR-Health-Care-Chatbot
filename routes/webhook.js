@@ -140,17 +140,19 @@ router.post('/', async (req, res) => {
         else {
             const BOT_NUMBERS = ['917425016636', '7425016636'];
 
-            // In AutobotChat webhooks, sender_id is often the bot number, and receiver is the patient!
-            let rawPhone = target.receiver || body.receiver || target.customer_phone || target.from_user || target.sender_id || target.from || target.wa_id || target.mobile || target.phone || target.number;
-            let cleanPhoneDigits = (rawPhone || '').toString().replace(/\D/g, '');
+            const rawSender = (target.sender_id || target.from || body.from || body.sender_id || '').toString().replace(/\D/g, '');
+            const isBotOutbound = BOT_NUMBERS.includes(rawSender) || body.from_me === true || target.from_me === true || target.is_outbound === true || body.direction === 'outbound';
 
-            // If extracted phone equals the bot's own number, swap to receiver/to field
-            if (BOT_NUMBERS.includes(cleanPhoneDigits) || cleanPhoneDigits === (body.wabaNumber || '').replace(/\D/g, '')) {
-                rawPhone = body.receiver || body.to || target.receiver || target.to || target.from || body.from;
-                cleanPhoneDigits = (rawPhone || '').toString().replace(/\D/g, '');
+            if (isBotOutbound) {
+                console.log(`[Webhook] Outbound message echo from bot (${rawSender}) ignored.`);
+                return res.status(200).json({ status: 'outbound_echo_ignored' });
             }
 
+            let rawPhone = target.from || target.sender_id || target.customer_phone || target.from_user || target.wa_id || target.mobile || target.phone || target.receiver || body.from || body.receiver;
+            let cleanPhoneDigits = (rawPhone || '').toString().replace(/\D/g, '');
+
             senderPhone = cleanPhoneDigits || rawPhone;
+
 
             // Interactive response handling
             const interactiveObj = target.interactive || body.interactive;
