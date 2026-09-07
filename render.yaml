@@ -5,10 +5,9 @@ services:
     buildCommand: npm install && npm run build
     startCommand: node server.js
     envVars:
-      - key: PORT
-        value: 3000
       - key: USE_REDIS
         value: "false"
+
       - key: WHATSAPP_PROVIDER
         value: AUTOBOTCHAT
       - key: AUTOBOTCHAT_USERNAME

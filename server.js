@@ -92,10 +92,13 @@ app.get('/health', (req, res) => {
 });
 
 
-app.listen(PORT, () => {
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
     console.log(`\n======================================================`);
-    console.log(`🏥 Health Saathi WhatsApp Bot Server Running on Port ${PORT}`);
+    console.log(`🏥 AMPLR Health WhatsApp Bot Server Running on ${HOST}:${PORT}`);
     console.log(`📲 Meta Webhook Verification URL: http://localhost:${PORT}/api/webhook`);
     console.log(`📊 Admin REST API URL: http://localhost:${PORT}/api/stats`);
     console.log(`======================================================\n`);
 });
+
