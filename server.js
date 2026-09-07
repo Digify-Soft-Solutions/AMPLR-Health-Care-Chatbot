@@ -105,3 +105,15 @@ app.listen(PORT, HOST, () => {
     console.log(`======================================================\n`);
 });
 
+// If PORT is not 10000, also bind 10000 so Render's internal reverse proxy always connects
+if (Number(PORT) !== 10000) {
+    try {
+        app.listen(10000, HOST, () => {
+            console.log(`🏥 Render Port 10000 proxy listener active on ${HOST}:10000`);
+        });
+    } catch (e) {
+        console.log('Port 10000 fallback note:', e.message);
+    }
+}
+
+
