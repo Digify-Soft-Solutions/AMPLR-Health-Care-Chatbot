@@ -3,19 +3,73 @@ import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
 import { addLiveWhatsAppMessage } from '../data/mockDatabase.js';
 
+import fs from 'fs';
+import path from 'path';
+
 const router = express.Router();
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'automatex_copilot_token';
 
-// Track recently processed message IDs to prevent duplicate webhook processing
-const processedMessageIds = new Set();
+// Robust cross-instance deduplication cache for Serverless
+const MEMORY_PROCESSED_KEYS = new Map();
+const LOCK_FILE = '/tmp/recent_processed_msgs.json';
 
-function isDuplicateMessage(msgId) {
-    if (!msgId) return false;
-    if (processedMessageIds.has(msgId)) return true;
-    processedMessageIds.add(msgId);
-    setTimeout(() => processedMessageIds.delete(msgId), 60000);
+function isDuplicateServerlessMessage(phone, text, rawMsgId) {
+    const now = Date.now();
+    const cleanKey = `${(phone || '').replace(/\D/g, '')}_${(text || '').trim().toLowerCase()}`;
+
+    // 1. Check in-memory map
+    if (MEMORY_PROCESSED_KEYS.has(cleanKey)) {
+        const lastTime = MEMORY_PROCESSED_KEYS.get(cleanKey);
+        if (now - lastTime < 3000) { // 3 second debounce
+            return true;
+        }
+    }
+    if (rawMsgId && MEMORY_PROCESSED_KEYS.has(rawMsgId)) {
+        return true;
+    }
+
+    // 2. Check /tmp lock file for cross-lambda instances
+    try {
+        let locks = {};
+        if (fs.existsSync(LOCK_FILE)) {
+            const raw = fs.readFileSync(LOCK_FILE, 'utf8');
+            locks = JSON.parse(raw || '{}');
+        }
+
+        // Clean up old locks older than 15 seconds
+        for (const k in locks) {
+            if (now - locks[k] > 15000) delete locks[k];
+        }
+
+        if (locks[cleanKey] && (now - locks[cleanKey] < 3000)) {
+            return true;
+        }
+        if (rawMsgId && locks[rawMsgId]) {
+            return true;
+        }
+
+        // Record new lock
+        locks[cleanKey] = now;
+        if (rawMsgId) locks[rawMsgId] = now;
+        fs.writeFileSync(LOCK_FILE, JSON.stringify(locks), 'utf8');
+    } catch (e) {
+        // Fallback to in-memory
+    }
+
+    MEMORY_PROCESSED_KEYS.set(cleanKey, now);
+    if (rawMsgId) MEMORY_PROCESSED_KEYS.set(rawMsgId, now);
+
+    // Clean up memory map
+    if (MEMORY_PROCESSED_KEYS.size > 200) {
+        const entries = Array.from(MEMORY_PROCESSED_KEYS.entries());
+        for (const [k, v] of entries) {
+            if (now - v > 30000) MEMORY_PROCESSED_KEYS.delete(k);
+        }
+    }
+
     return false;
 }
+
 
 /**
  * GET Webhook Verification endpoint for Meta WhatsApp Cloud API & AutobotChat
@@ -147,6 +201,13 @@ router.post('/', async (req, res) => {
 
         // Clean phone number format
         senderPhone = senderPhone.toString().trim();
+
+        // 3. Strict Phone + Content Serverless Deduplication (Prevents double dispatch)
+        if (isDuplicateServerlessMessage(senderPhone, messageText || payloadData, msgId)) {
+            console.log(`[Webhook Duplicate Dropped] Ignored duplicate message for ${senderPhone}: "${messageText || payloadData}"`);
+            return res.status(200).json({ status: 'duplicate_dropped' });
+        }
+
 
         // Extract patient display name if provided by WhatsApp webhook
         const displayName = body.display_name || target.display_name ||
