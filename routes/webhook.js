@@ -48,22 +48,28 @@ router.post('/', async (req, res) => {
         // Extract nested payload if AutobotChat wraps payload in `data` or `payload` or `result`
         const target = body.data || body.payload || body.result || body;
 
-        // 1. Check if this is STRICTLY a status update / delivery receipt / read event
-        const isDeliveryReceipt = (body.delivery_time || body.template_id || body.event === 'DELIVERY' || body.event === 'READ' || body.status === 'read' || body.status === 'delivered' || body.status === 'sent' || target.status === 'read' || target.status === 'delivered') &&
-            !body.text && !body.message && !body.entry && !target.text && !target.message && !target.interactive && !target.body;
+        // 1. Strictly ignore delivery receipts, read events, status updates, or outbound bot echoes
+        const isStatusOrEcho = (
+            body.event === 'DELIVERY' || body.event === 'READ' || body.event === 'SENT' ||
+            body.status === 'read' || body.status === 'delivered' || body.status === 'sent' ||
+            target.status === 'read' || target.status === 'delivered' || target.status === 'sent' ||
+            body.statuses || target.statuses || body.type === 'status' || target.type === 'status' ||
+            body.delivery_time || target.delivery_time || body.template_id || target.template_id ||
+            body.from_me === true || target.from_me === true || target.is_outbound === true || body.direction === 'outbound'
+        );
 
-        if (isDeliveryReceipt) {
-            console.log('[Webhook] Status report / delivery receipt received & ignored.');
+        if (isStatusOrEcho) {
+            console.log('[Webhook] Status report / delivery receipt / bot echo ignored.');
             return res.status(200).json({ status: 'ignored' });
         }
 
-
-        // 2. Deduplicate incoming webhooks using message ID (only for real message payloads)
+        // 2. Deduplicate incoming webhooks using message ID
         const msgId = body.id || target.id || target.whts_ref_id || (target.context ? target.context.id : null);
         if (msgId && isDuplicateMessage(msgId)) {
             console.log(`[Webhook] Ignored duplicate webhook for Message ID: ${msgId}`);
-            return;
+            return res.status(200).json({ status: 'duplicate_ignored' });
         }
+
 
         let senderPhone = null;
         let messageText = null;
