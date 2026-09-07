@@ -1,232 +1,415 @@
 import { SERVICES, addBooking, getBookings, addEmergencyAlert, CONVERSATION_STATES } from '../data/mockDatabase.js';
 
+/**
+ * ============================================================================
+ * AMPLR HEALTH - Master Healthcare Chatbot Engine
+ * Slogan: "Brings Hospital Care to Your Home"
+ * Helpline: 7997888448
+ * ============================================================================
+ */
+
+const HELPLINE = '7997888448';
+
+const PARTNER_FORMS = {
+    '1': { name: 'Lab-Blood Collection (Phlebotomist)', url: 'https://forms.gle/LXC4gU5E7wFVEAvcA' },
+    '2': { name: 'Nursing Professional', url: 'https://forms.gle/wYAu8YUGAnjuHFwD6' },
+    '3': { name: 'Caregiver / Caretaker', url: 'https://forms.gle/9kRGgy3CJr2ZXaRD8' },
+    '4': { name: 'Physiotherapist', url: 'https://forms.gle/QB2kwRWH8gpNnz1K8' },
+    '5': { name: 'ECG Technician', url: 'https://forms.gle/ihAB8nruwNo9JJjC6' },
+    '6': { name: 'Ambulance Partner', url: 'https://forms.gle/bScLWDSmhg6RDQwh6' },
+    '7': { name: 'Doctor Consultation', url: 'https://forms.gle/pob6vRt5reBS7YMq5' },
+    '8': { name: 'Hospital / Clinic Partnership', url: 'https://forms.gle/iUWhwpiWwyGA176Q6' }
+};
+
+const PATIENT_BOOKING_FORMS = {
+    en: 'https://forms.gle/TDUEAVf9bdyAgUrW6',
+    te: 'https://forms.gle/ndEuC7ToumgiiTy59'
+};
+
 const EMERGENCY_KEYWORDS = [
     'chest pain', 'breathing difficulty', 'unconscious', 'emergency',
-    'heavy bleeding', 'stroke', 'heart attack', 'severe pain', '108', 'ambulance'
+    'heavy bleeding', 'stroke', 'heart attack', 'severe pain', '108'
 ];
 
-/**
- * Health Saathi WhatsApp Conversation Engine by AutomateX.co.in
- * Formats ultra-aesthetic, highly structured, professional WhatsApp messages
- */
 export function processHealthcareMessage(userPhone, messageText, payloadData = null) {
     let cleanUserPhone = (userPhone || '').toString().replace(/\D/g, '');
     if (cleanUserPhone.length === 10) cleanUserPhone = '91' + cleanUserPhone;
     const phoneKey = cleanUserPhone || userPhone;
 
-    const text = (messageText || '').trim().toLowerCase();
+    const rawText = (messageText || '').trim();
+    const text = rawText.toLowerCase();
 
-    // 1. Emergency Clinical Escalation Safeguard Check
+    // 1. Emergency Clinical Notice
     const isEmergency = EMERGENCY_KEYWORDS.some(kw => text.includes(kw));
     if (isEmergency) {
-        addEmergencyAlert({
-            phone: userPhone,
-            patientName: `Patient (${userPhone})`,
-            triggerKeyword: text,
-        });
-
+        addEmergencyAlert({ phone: userPhone, triggerKeyword: text });
         return {
             type: 'TEXT',
-            text: `🚨 *URGENT CLINICAL MEDICAL NOTICE* 🚨\n----------------------------------------\nIf the patient is experiencing an immediate life-threatening medical emergency (such as severe chest pain, loss of consciousness, or acute breathing distress):\n\n1️⃣ Please call **108 Emergency Ambulance** or reach the nearest Emergency Room (ER) immediately.\n2️⃣ Our Clinical & Medical Escalation Team has been alerted for this number (${userPhone}).\n----------------------------------------\n*Our home healthcare services are for non-emergency home visits.*`
+            text: `🚨 *URGENT CLINICAL NOTICE* 🚨\n----------------------------------------\nIf the patient is experiencing a life-threatening medical emergency:\n\n1️⃣ Please dial **108 Emergency Ambulance** immediately.\n2️⃣ Our Clinical Escalation Team has been notified.\n\n📞 Support Line: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH provides planned home healthcare services._`
         };
     }
 
-    // 2. Greeting / Reset Check
-    const GREETINGS = ['hi', 'hii', 'hiii', 'hie', 'hiee', 'heyy', 'hey', 'hello', 'namaste', 'menu', 'restart', 'start', '0', 'help', 'healthcare', 'doctor', 'bot', 'khaira', 'good morning', 'good afternoon', 'good evening'];
+    // 2. Partner Flow Trigger Check
+    const PARTNER_KEYWORDS = ['partner', 'partnership', 'join', 'become a partner', 'భాగస్వామ్యం', 'doctor join', 'nurse join'];
+    const isPartnerTrigger = PARTNER_KEYWORDS.some(kw => text === kw || text.includes(kw));
+
+    if (isPartnerTrigger) {
+        CONVERSATION_STATES[phoneKey] = { step: 'PARTNER_SELECT_PROFESSION', lang: 'en', data: {} };
+        return getPartnerProfessionMenu();
+    }
+
+    // 3. Customer Start / Reset Check
+    const GREETINGS = ['hi', 'hii', 'hiii', 'hello', 'namaste', 'start', 'menu', 'restart', '0', 'నమస్తే', 'నమస్కారం'];
     const isGreeting = GREETINGS.some(g => text === g || text.startsWith(g + ' ') || text.startsWith(g + '!'));
 
-    // Welcome Greeting Function
-    const getWelcomeMessage = () => ({
-        type: 'TEXT',
-        text: `👋 *Welcome to Health Saathi Chatbot*\n_by AutomateX.co.in_\n\n🩺 *Doctor-Guided Home Healthcare Services*\n----------------------------------------\nWe deliver certified nursing, physiotherapy, caretaker, and diagnostic services directly to your doorstep.\n\n📋 *HOW CAN WE HELP YOU TODAY?*\nPlease reply with a number (*1 to 7*) to select:\n\n1️⃣  *Nursing at Home*\n     └ ₹800 / visit  •  ₹1,500 / 12-hr shift\n\n2️⃣  *Caretaker at Home*\n     └ ₹1,200 / 12-hr  •  ₹2,000 / 24-hr\n\n3️⃣  *Physiotherapy at Home*\n     └ ₹900 / 45-min expert session\n\n4️⃣  *Lab Test / Sample Collection*\n     └ Starts @ ₹500  (Free home collection)\n\n5️⃣  *ECG at Home*\n     └ ₹1,100 / test (Instant digital report)\n\n6️⃣  *Full Tariff Card & Information*\n7️⃣  *Check Booking Status / Track Professional*\n----------------------------------------\n📲 *Reply with option number (1 to 7) to proceed*`
-    });
-
     if (isGreeting || !CONVERSATION_STATES[phoneKey]) {
-        CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', data: {} };
-        return getWelcomeMessage();
+        CONVERSATION_STATES[phoneKey] = { step: 'SELECT_LANGUAGE', data: {} };
+        return getLanguageMenu();
     }
 
     const state = CONVERSATION_STATES[phoneKey];
+    const isTelugu = state.lang === 'te';
 
+    // 4. Conversation State Machine
     switch (state.step) {
+
+        // --- STEP 1: LANGUAGE SELECTION ---
+        case 'SELECT_LANGUAGE': {
+            if (text === '1' || text.includes('english') || text === 'en') {
+                state.lang = 'en';
+                state.step = 'MAIN_MENU';
+                return getMainMenuEnglish();
+            } else if (text === '2' || text.includes('telugu') || text.includes('తెలుగు') || text === 'te') {
+                state.lang = 'te';
+                state.step = 'MAIN_MENU';
+                return getMainMenuTelugu();
+            } else {
+                return {
+                    type: 'TEXT',
+                    text: `Please select your preferred language:\n\n1️⃣ English\n2️⃣ తెలుగు (Telugu)\n\n_Reply with 1 or 2_`
+                };
+            }
+        }
+
+        // --- STEP 2: MAIN MENU ---
         case 'MAIN_MENU': {
-            let selectedServiceId = null;
-            if (payloadData && payloadData.startsWith('SERVICE_')) {
-                selectedServiceId = payloadData.replace('SERVICE_', '');
-            } else if (text === '1' || text.includes('nursing')) selectedServiceId = '1';
-            else if (text === '2' || text.includes('caretaker')) selectedServiceId = '2';
-            else if (text === '3' || text.includes('physio')) selectedServiceId = '3';
-            else if (text === '4' || text.includes('lab')) selectedServiceId = '4';
-            else if (text === '5' || text.includes('ecg')) selectedServiceId = '5';
-            else if (text === '6' || payloadData === 'OPT_PRICING') {
+            // Option 1: Book Health Service
+            if (text === '1' || text.includes('book') || text.includes('బుక్')) {
+                state.step = 'SELECT_SERVICE_CATEGORY';
+                return isTelugu ? getServicesMenuTelugu() : getServicesMenuEnglish();
+            }
+            // Option 2: Our Services & Pricing
+            else if (text === '2' || text.includes('service') || text.includes('pricing') || text.includes('ధరలు')) {
+                state.step = 'SELECT_PRICING_CATEGORY';
+                return isTelugu ? getPricingMenuTelugu() : getPricingMenuEnglish();
+            }
+            // Option 3: Contact Us
+            else if (text === '3' || text.includes('contact') || text.includes('support') || text.includes('సంప్రదించండి')) {
                 return {
                     type: 'TEXT',
-                    text: `💰 *HEALTH SAATHI SERVICE TARIFF CARD*\n_AutomateX.co.in Healthcare Tariff_\n----------------------------------------\n1️⃣ *Nursing at Home*: ₹800 / visit or ₹1,500 / 12-hr shift\n2️⃣ *Caretaker at Home*: ₹1,200 / 12-hr or ₹2,000 / 24-hr\n3️⃣ *Physiotherapy at Home*: ₹900 / 45-min session\n4️⃣ *Lab Test / Sample Collection*: Starts @ ₹500\n5️⃣ *ECG at Home*: ₹1,100 / digital report\n----------------------------------------\nReply with *1 to 5* to book a service or *0* for main menu.`
-                };
-            } else if (text === '7' || payloadData === 'OPT_STATUS') {
-                state.step = 'CHECK_STATUS';
-                return {
-                    type: 'TEXT',
-                    text: `🔍 *CHECK BOOKING STATUS*\n----------------------------------------\nPlease enter your **Booking ID** (e.g. *PH-10452* or *NS-10453*) to track your assigned professional:`
+                    text: isTelugu
+                        ? `🏥 *AMPLR HEALTH - మమ్మల్ని సంప్రదించండి*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\n📞 హెల్ప్‌లైన్: *${HELPLINE}*\n⏰ సేవ సమయం: 24/7 అందుబాటులో ఉంది\n\n💬 మీకు ఏవైనా సహాయం కావాలంటే నేరుగా కాల్ చేయండి.\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* టైప్ చేయండి.`
+                        : `🏥 *AMPLR HEALTH - Contact Us & Support*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n📞 **Official Helpline**: *${HELPLINE}*\n⏰ **Service Hours**: 24/7 Available\n\n💬 For immediate booking assistance or queries, feel free to call our support team.\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
                 };
             }
+            // Option 4: Become a Partner
+            else if (text === '4' || text.includes('partner') || text.includes('భాగస్వామ్యం')) {
+                state.step = 'PARTNER_SELECT_PROFESSION';
+                return getPartnerProfessionMenu();
+            } else {
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+        }
 
-            const service = SERVICES.find(s => s.id === selectedServiceId);
-            if (service) {
-                state.data.service = service;
-                state.step = 'CAPTURE_PINCODE';
+        // --- STEP 3: SELECT SERVICE CATEGORY TO BOOK ---
+        case 'SELECT_SERVICE_CATEGORY': {
+            if (text === '0' || text === 'menu') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+
+            const serviceNames = {
+                '1': 'Lab-Blood Collection',
+                '2': 'Nursing Services at Home',
+                '3': 'Caregiver / Caretaker',
+                '4': 'Physiotherapy at Home',
+                '5': 'ECG at Home',
+                '6': 'Doctor Consultation',
+                '7': 'Ambulance Services',
+                '8': 'Hospital / Clinic Referral'
+            };
+
+            if (serviceNames[text]) {
+                state.data.selectedService = serviceNames[text];
+
+                // If Doctor, Nursing, or Ambulance, show their specific rate options
+                if (text === '6') {
+                    state.step = 'SELECT_DOCTOR_SPECIALTY';
+                    return getDoctorSpecialtiesMenu(isTelugu);
+                } else if (text === '2') {
+                    state.step = 'SELECT_NURSING_PROCEDURE';
+                    return getNursingProceduresMenu(isTelugu);
+                } else if (text === '7') {
+                    state.step = 'SELECT_AMBULANCE_TYPE';
+                    return getAmbulanceMenu(isTelugu);
+                }
+
+                state.step = 'CAPTURE_PATIENT_NAME';
                 return {
                     type: 'TEXT',
-                    text: `🩺 *SELECTED SERVICE*: *${service.name}*\n_${service.description}_\n\n💰 *Tariff*: ${service.priceDescription}\n----------------------------------------\n📍 *STEP 1 OF 3: LOCATION PINCODE*\n\nPlease enter the **6-Digit Pincode** or Area Name where the service is required (e.g. *302012*):`
+                    text: isTelugu
+                        ? `🩺 *ఎంపిక చేసిన సేవ*: *${serviceNames[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి పేరు మరియు వయస్సు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *రమేష్, 45*):`
+                        : `🩺 *Selected Service*: *${serviceNames[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Rahul Sharma, 52*):`
                 };
             }
 
             return {
                 type: 'TEXT',
-                text: `❌ *Invalid Selection*\n----------------------------------------\nPlease reply with numbers *1 to 5* to select a service, *6* for tariff card, or *7* to check booking status.\n\nType *hi* or *menu* anytime to restart.`
+                text: isTelugu
+                    ? `❌ దయచేసి సరైన సంఖ్యను (1 నుండి 8) ఎంచుకోండి, లేదా ప్రధాన మెనూ కోసం *0* టైప్ చేయండి.`
+                    : `❌ Please reply with a valid service number (*1 to 8*), or *0* for Main Menu.`
             };
         }
 
-        case 'CAPTURE_PINCODE': {
-            const pincode = text.replace(/[^0-9]/g, '');
-            state.data.pincode = pincode || text || '302012';
-            state.step = 'CAPTURE_DATE';
+        // --- DOCTOR CONSULTATION SPECIALTY SELECTION ---
+        case 'SELECT_DOCTOR_SPECIALTY': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+            const doctorTypes = {
+                '1': 'DERM / ORTHO / PSY / ENT (₹399)',
+                '2': 'PULMO / MS.SURG / URO / IVF (₹599)',
+                '3': 'GASTRO / CARDIO / ENDO / NEURO (₹599)',
+                '4': 'ONCO - Oncology (₹799)',
+                '5': 'AYUR / PANCHA / HOMEO (₹299)',
+                '6': 'UNANI / SIDDHA / YOGA / NATURO (₹299)',
+                '7': 'FERTILITY / CHRONIC (₹499)',
+                '8': 'NUTRITIONIST / DIETITIAN (₹299)'
+            };
 
+            if (doctorTypes[text]) {
+                state.data.selectedSubService = doctorTypes[text];
+                state.step = 'CAPTURE_PATIENT_NAME';
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `👨‍⚕️ *ఎంపిక చేసిన కన్సల్టేషన్*: *${doctorTypes[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *సురేష్, 40*):`
+                        : `👨‍⚕️ *Selected Specialty*: *${doctorTypes[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Amit Verma, 45*):`
+                };
+            }
+            return getDoctorSpecialtiesMenu(isTelugu);
+        }
+
+        // --- NURSING PROCEDURE SELECTION ---
+        case 'SELECT_NURSING_PROCEDURE': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+            const nursingTypes = {
+                '1': 'Injection / IV Push / IV Cannulation (₹300)',
+                '2': 'IV Fluid Administration (₹500)',
+                '3': 'Dressing / Wound Care / Catheter Insertion (₹700)',
+                '4': 'Vasculitis Dressing (₹900)',
+                '5': 'BP / Sugar / Vitals Check (₹200)',
+                '6': 'Bedridden Patient Care (₹700)',
+                '7': 'Nursing Care (1-3 Hours) (₹700)',
+                '8': 'Nursing Care (1-6 Hours) (₹1,400)',
+                '9': 'Nursing Care (1-12 Hours) (₹2,600)'
+            };
+
+            if (nursingTypes[text]) {
+                state.data.selectedSubService = nursingTypes[text];
+                state.step = 'CAPTURE_PATIENT_NAME';
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `👩‍⚕️ *ఎంపిక చేసిన నర్సింగ్ సేవ*: *${nursingTypes[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి:`
+                        : `👩‍⚕️ *Selected Nursing Service*: *${nursingTypes[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age**:`
+                };
+            }
+            return getNursingProceduresMenu(isTelugu);
+        }
+
+        // --- AMBULANCE TYPE SELECTION ---
+        case 'SELECT_AMBULANCE_TYPE': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+            state.data.selectedSubService = text === '1' ? 'Toofan / Omni A/C Ambulance' : 'Tempo Traveller A/C Ambulance';
+            state.step = 'CAPTURE_PATIENT_NAME';
             return {
                 type: 'TEXT',
-                text: `📍 *Location Recorded*: *${state.data.pincode}*\n----------------------------------------\n📅 *STEP 2 OF 3: PREFERRED DATE*\n\nWhen would you like the healthcare professional to visit?\n\n1️⃣ *Today*\n2️⃣ *Tomorrow*\n3️⃣ *Custom Date*\n----------------------------------------\n📲 *Reply 1 for Today, 2 for Tomorrow, or type a date (e.g. 30 Aug):*`
+                text: `🚑 *Selected*: *${state.data.selectedSubService}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Pickup Address**:`
             };
         }
 
-        case 'CAPTURE_DATE': {
-            let preferredDate = 'Tomorrow';
-            if (text === '1' || payloadData === 'DATE_TODAY' || text.includes('today')) preferredDate = 'Today';
-            else if (text === '2' || payloadData === 'DATE_TOMORROW' || text.includes('tomorrow')) preferredDate = 'Tomorrow';
-            else preferredDate = text;
+        // --- CAPTURE PATIENT NAME ---
+        case 'CAPTURE_PATIENT_NAME': {
+            state.data.patientName = rawText;
+            state.step = 'CAPTURE_DATE_TIME';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `👤 *రోగి వివరాలు*: *${state.data.patientName}*\n----------------------------------------\n📅 *దశ 2/3: కావలసిన తేదీ మరియు సమయం*\n\nసేవ ఏ రోజు మరియు ఏ సమయానికి కావాలి? (ఉదా: *రేపు ఉదయం 10 గంటలకు* లేదా *Today 5 PM*):`
+                    : `👤 *Patient Details*: *${state.data.patientName}*\n----------------------------------------\n📅 *STEP 2 OF 3: PREFERRED DATE & TIME*\n\nWhen would you like the service? (e.g. *Today 4:00 PM* or *Tomorrow 10:00 AM*):`
+            };
+        }
 
-            state.data.date = preferredDate;
-            state.step = 'SELECT_SLOT';
+        // --- CAPTURE DATE & TIME ---
+        case 'CAPTURE_DATE_TIME': {
+            state.data.dateTime = rawText;
+            state.step = 'CAPTURE_LOCATION';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `⏰ *సమయం*: *${state.data.dateTime}*\n----------------------------------------\n📍 *దశ 3/3: సర్వీస్ లొకేషన్ / చిరునామా*\n\nదయచేసి మీ ప్రాంతం, ల్యాండ్‌మార్క్ లేదా పిన్‌కోడ్ నమోదు చేయండి:`
+                    : `⏰ *Date & Time*: *${state.data.dateTime}*\n----------------------------------------\n📍 *STEP 3 OF 3: SERVICE ADDRESS / LOCATION*\n\nPlease enter your **Home Address, Landmark, or Pincode**:`
+            };
+        }
 
-            const service = state.data.service || SERVICES[0];
-            let slotsText = `📅 *Date Reserved*: *${preferredDate}*\n----------------------------------------\n🕘 *SELECT PREFERRED TIME SLOT* for **${service.name}**:\n\n`;
-            service.slots.forEach((slot, idx) => {
-                slotsText += `${idx + 1}️⃣ *${slot}*\n`;
+        // --- CAPTURE LOCATION & FINALIZE BOOKING ---
+        case 'CAPTURE_LOCATION': {
+            state.data.location = rawText;
+            const bookingId = 'AMPLR-' + Math.floor(10000 + Math.random() * 90000);
+
+            addBooking({
+                id: bookingId,
+                patientName: state.data.patientName,
+                serviceName: state.data.selectedSubService || state.data.selectedService,
+                dateTime: state.data.dateTime,
+                location: state.data.location,
+                phone: userPhone,
+                status: 'CONFIRMED'
             });
-            slotsText += `----------------------------------------\n📲 *Reply with slot number (1 to ${service.slots.length}) or type custom time.*`;
+
+            const serviceBooked = state.data.selectedSubService || state.data.selectedService;
+            const patient = state.data.patientName;
+            const dt = state.data.dateTime;
+            const loc = state.data.location;
+
+            // Reset state
+            delete CONVERSATION_STATES[phoneKey];
 
             return {
                 type: 'TEXT',
-                text: slotsText
+                text: isTelugu
+                    ? `✅ *బుకింగ్ విజయవంతంగా నిర్ధారించబడింది!*\n----------------------------------------\n🔖 *బుకింగ్ ID*: *${bookingId}*\n🩺 *సేవ*: ${serviceBooked}\n👤 *రోగి*: ${patient}\n📅 *సమయం*: ${dt}\n📍 *ప్రదేశం*: ${loc}\n\n👨‍⚕️ మా హెల్త్‌కేర్ ప్రొఫెషనల్ త్వరలో మిమ్మల్ని సంప్రదిస్తారు.\n📞 అత్యవసర సహాయం: *${HELPLINE}*\n\nఆన్‌లైన్ ఫారమ్ పూర్తి చేయడానికి: ${PATIENT_BOOKING_FORMS.te}\n----------------------------------------\n_AMPLR HEALTH – ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది._`
+                    : `✅ *BOOKING CONFIRMED SUCCESSFULLY!*\n----------------------------------------\n🔖 *Booking ID*: *${bookingId}*\n🩺 *Service*: ${serviceBooked}\n👤 *Patient*: ${patient}\n📅 *Schedule*: ${dt}\n📍 *Address*: ${loc}\n\n👨‍⚕️ Our healthcare professional is being assigned and will contact you shortly.\n📞 Official Helpline: *${HELPLINE}*\n\n🔗 Optional Detailed Form: ${PATIENT_BOOKING_FORMS.en}\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
             };
         }
 
-        case 'SELECT_SLOT': {
-            let slotName = '3:00 PM';
-            const service = state.data.service || SERVICES[0];
-            const slotIndex = parseInt(text, 10) - 1;
-
-            if (slotIndex >= 0 && slotIndex < service.slots.length) {
-                slotName = service.slots[slotIndex];
-            } else if (payloadData && payloadData.startsWith('SLOT_')) {
-                const idx = parseInt(payloadData.replace('SLOT_', ''), 10);
-                slotName = service.slots[idx] || slotName;
-            } else if (text) {
-                slotName = text;
+        // --- PARTNER PROFESSION SELECTION ---
+        case 'PARTNER_SELECT_PROFESSION': {
+            if (text === '0' || text === '9' || text === 'menu') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
 
-            state.data.slot = slotName;
-            state.step = 'CAPTURE_PATIENT_DETAILS';
-
-            return {
-                type: 'TEXT',
-                text: `🕘 *Time Slot Reserved*: *${slotName}*\n----------------------------------------\n👤 *STEP 3 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name & Age** (e.g. *Rajesh Sharma, 58 yrs*):`
-            };
-        }
-
-        case 'CAPTURE_PATIENT_DETAILS': {
-            const input = (text || '').trim();
-            // Validate if age or numbers are provided
-            if (input.length < 3 || (!/\d/.test(input) && !input.toLowerCase().includes('yr') && !input.toLowerCase().includes('year'))) {
+            const partnerObj = PARTNER_FORMS[text];
+            if (partnerObj) {
                 return {
                     type: 'TEXT',
-                    text: `⚠️ *PATIENT AGE REQUIRED*\n----------------------------------------\nPlease specify both **Patient Name & Age** (e.g. *Ramesh Sharma, 54 yrs* or *Priya, 30 years*):`
+                    text: `🤝 *AMPLR HEALTH PARTNER ONBOARDING*\n----------------------------------------\nCategory: *${partnerObj.name}*\n\nThank you for choosing to become a valued partner with AMPLR HEALTH! 🏥\n\nPlease complete the official registration form below to begin your verification and onboarding process:\n\n👉 **Complete Partner Registration Form**:\n${partnerObj.url}\n\nOur onboarding team will review your details and contact you shortly for activation.\n----------------------------------------\n📞 Partner Support: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
                 };
             }
 
-            state.data.patientDetails = input;
-            state.step = 'CONFIRMATION';
-
-            const service = state.data.service || SERVICES[0];
-            const price = service.basePrice;
-
-            return {
-                type: 'TEXT',
-                text: `📋 *HEALTH SAATHI BOOKING QUOTATION*\n----------------------------------------\n• *Service*: ${service.name}\n• *Patient*: ${input}\n• *Location Pincode*: ${state.data.pincode}\n• *Scheduled Visit*: ${state.data.date} @ ${state.data.slot}\n• *Estimated Charges*: *₹${price}*\n----------------------------------------\n*Would you like to confirm this booking?*\n\n1️⃣  ✅ *Confirm & Book Now*\n2️⃣  ❌ *Cancel*\n----------------------------------------\n📲 *Reply 1 to Confirm or 2 to Cancel.*`
-            };
+            return getPartnerProfessionMenu();
         }
 
-        case 'CONFIRMATION': {
-            const CONFIRM_WORDS = ['1', 'yes', 'confirm', 'y', 'ok', 'ha', 'haan', 'sure', 'book', 'done'];
-            const isConfirm = CONFIRM_WORDS.some(w => text === w || text.includes(w)) || payloadData === 'CONFIRM_YES';
-
-            if (isConfirm) {
-                const service = state.data.service || SERVICES[0];
-                const newBooking = addBooking({
-                    serviceId: service.id,
-                    serviceName: service.name,
-                    category: service.category,
-                    patientName: state.data.patientDetails || 'Patient',
-                    phone: userPhone,
-                    pincode: state.data.pincode || '302012',
-                    date: state.data.date || 'Tomorrow',
-                    slot: state.data.slot || '11:00 AM',
-                    amount: service.basePrice,
-                    paymentStatus: 'Pending',
-                });
-
-                // Reset state
-                CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', data: {} };
-
-                const staffName = newBooking.assignedStaff ? `${newBooking.assignedStaff.name} (${newBooking.assignedStaff.phone})` : '🟡 Pending Staff Allocation (Admin will allocate nearby specialist)';
-
-                return {
-                    type: 'BOOKING_CONFIRMED',
-                    text: `✅ *BOOKING RECEIVED & PENDING ALLOCATION*\n----------------------------------------\n🆔 *Booking ID*: *${newBooking.id}*\n🩺 *Service*: ${newBooking.serviceName}\n👤 *Patient*: ${newBooking.patientName}\n📅 *Scheduled Date*: ${newBooking.date}\n🕘 *Time Slot*: ${newBooking.slot}\n📍 *Pincode*: ${newBooking.pincode}\n👨‍⚕️ *Assigned Professional*: ${staffName}\n💰 *Total Amount*: ₹${newBooking.amount}\n💳 *Payment*: Pending (Pay on Visit / Online UPI)\n----------------------------------------\n📱 *A WhatsApp reminder will be sent 1 hour before the visit.*`,
-                    bookingId: newBooking.id
-                };
-            }
-
-            CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', data: {} };
-            return {
-                type: 'TEXT',
-                text: `❌ *Booking Cancelled*\n----------------------------------------\nType *menu* or *hi* anytime to start again.`
-            };
-        }
-
-        case 'CHECK_STATUS': {
-            const bookingId = text.toUpperCase();
-            const bookings = getBookings();
-            const found = bookings.find(b => b.id === bookingId || b.phone === userPhone);
-
-            CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', data: {} };
-
-            if (found) {
-                const staff = found.assignedStaff ? `${found.assignedStaff.name} (${found.assignedStaff.phone})` : 'Under Allocation';
-                return {
-                    type: 'TEXT',
-                    text: `📋 *BOOKING DETAILS FOR ${found.id}*\n----------------------------------------\n• *Service*: ${found.serviceName}\n• *Patient*: ${found.patientName}\n• *Status*: 🟢 *${found.status}*\n• *Scheduled Date*: ${found.date} @ ${found.slot}\n• *Assigned Staff*: ${staff}\n• *Payment Status*: ${found.paymentStatus}\n----------------------------------------\nType *menu* to return to main options.`
-                };
-            }
-
-            return {
-                type: 'TEXT',
-                text: `❌ No booking found for ID "${bookingId}". Type *menu* to return to main options.`
-            };
+        // --- PRICING CATALOG VIEW ---
+        case 'SELECT_PRICING_CATEGORY': {
+            if (text === '1') return getDoctorSpecialtiesMenu(isTelugu);
+            if (text === '2') return getNursingProceduresMenu(isTelugu);
+            if (text === '3') return getAmbulanceMenu(isTelugu);
+            state.step = 'MAIN_MENU';
+            return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
         }
 
         default: {
-            CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', data: {} };
-            return getWelcomeMessage();
+            CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', lang: state.lang || 'en', data: {} };
+            return state.lang === 'te' ? getMainMenuTelugu() : getMainMenuEnglish();
         }
     }
+}
+
+// --- HELPER TEMPLATES ---
+
+function getLanguageMenu() {
+    return {
+        type: 'TEXT',
+        text: `🏥 *AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nWelcome! Please select your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:\n\n1️⃣  *English*\n2️⃣  *తెలుగు (Telugu)*\n----------------------------------------\n📲 *Reply with 1 or 2 to continue*`
+    };
+}
+
+function getMainMenuEnglish() {
+    return {
+        type: 'TEXT',
+        text: `👋 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can we assist you today?\n\n1️⃣ 🩺 *Book Health Service*\n2️⃣ 📋 *Our Services & Pricing Menu*\n3️⃣ 📞 *Contact Us & Support*\n4️⃣ 🤝 *Become a Partner*\n----------------------------------------\n📲 *Reply with number (1 to 4) of your choice*`
+    };
+}
+
+function getMainMenuTelugu() {
+    return {
+        type: 'TEXT',
+        text: `👋 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 🩺 *ఆరోగ్య సేవను బుక్ చేయండి*\n2️⃣ 📋 *మా సేవలు & ధరల జాబితా*\n3️⃣ 📞 *మమ్మల్ని సంప్రదించండి*\n4️⃣ 🤝 *మాతో భాగస్వామ్యం అవ్వండి*\n----------------------------------------\n📲 *మీ ఎంపిక కోసం 1 నుండి 4 సంఖ్యను రిప్లై ఇవ్వండి*`
+    };
+}
+
+function getServicesMenuEnglish() {
+    return {
+        type: 'TEXT',
+        text: `🩺 *AMPLR HEALTH - SERVICES*\n----------------------------------------\nPlease select the healthcare service you require:\n\n1️⃣ 🩸 *Lab - Blood Collection at Home*\n2️⃣ 👩‍⚕️ *Nursing Services at Home*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapy at Home*\n5️⃣ 💓 *ECG at Home*\n6️⃣ 👨‍⚕️ *Doctor Consultation (Specialist)*\n7️⃣ 🚑 *Ambulance Services (24/7)*\n8️⃣ 🏥 *Hospital / Clinic Referral*\n----------------------------------------\n📲 *Reply with number (1 to 8) to book, or 0 for Main Menu*`
+    };
+}
+
+function getServicesMenuTelugu() {
+    return {
+        type: 'TEXT',
+        text: `🩺 *AMPLR HEALTH - సేవలు*\n----------------------------------------\nమీకు అవసరమైన ఆరోగ్య సేవను ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ - రక్త నమూనా సేకరణ*\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవలు (ఇంటి వద్ద)*\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్‌*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపీ*\n5️⃣ 💓 *ఇంటి వద్ద ECG*\n6️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్*\n7️⃣ 🚑 *అంబులెన్స్ సేవలు (24/7)*\n8️⃣ 🏥 *ఆసుపత్రి / క్లినిక్ సేవలు*\n----------------------------------------\n📲 *బుక్ చేయడానికి 1 నుండి 8 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
+    };
+}
+
+function getPricingMenuEnglish() {
+    return {
+        type: 'TEXT',
+        text: `💰 *AMPLR HEALTH - SERVICE PRICING TARIFF*\n----------------------------------------\nSelect a category to view detailed rate cards:\n\n1️⃣ 👨‍⚕️ *Doctor Consultation Rates* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 - ₹2,600)\n3️⃣ 🚑 *Ambulance Transport Slabs* (From ₹1,400)\n----------------------------------------\n📲 *Reply 1, 2, or 3, or reply 0 for Main Menu*`
+    };
+}
+
+function getPricingMenuTelugu() {
+    return {
+        type: 'TEXT',
+        text: `💰 *AMPLR HEALTH - సేవల ధరల వివరాలు*\n----------------------------------------\nవివరమైన ధరల జాబితాను చూడటానికి ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్ ఛార్జీలు* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ఛార్జీలు* (₹200 - ₹2,600)\n3️⃣ 🚑 *అంబులెన్స్ ఛార్జీలు* (₹1,400 నుండి)\n----------------------------------------\n📲 *1, 2, లేదా 3 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
+    };
+}
+
+function getDoctorSpecialtiesMenu(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: `👨‍⚕️ *AMPLR HEALTH - DOCTOR CONSULTATION TARIFF*\n----------------------------------------\n1️⃣ *DERM / ORTHO / PSY / ENT* ── *₹399*\n2️⃣ *PULMO / MS.SURG / URO / IVF* ── *₹599*\n3️⃣ *GASTRO / CARDIO / ENDO / NEURO* ── *₹599*\n4️⃣ *ONCO (Oncology)* ── *₹799*\n5️⃣ *AYUR / PANCHA / HOMEO* ── *₹299*\n6️⃣ *UNANI / SIDDHA / YOGA / NATURO* ── *₹299*\n7️⃣ *FERTILITY / CHRONIC* ── *₹499*\n8️⃣ *NUTRITIONIST / DIETITIAN* ── *₹299*\n----------------------------------------\n📲 *Reply with number (1 to 8) to book your doctor, or 0 for Menu*`
+    };
+}
+
+function getNursingProceduresMenu(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: `👩‍⚕️ *AMPLR HEALTH - NURSING CHARGES AT HOME*\n----------------------------------------\n1️⃣ *Injection / IV Push / Cannulation* (Visit) ── *₹300*\n2️⃣ *IV Fluid Administration* (Visit) ── *₹500*\n3️⃣ *Dressing / Wound Care / Catheter* (Visit) ── *₹700*\n4️⃣ *Vasculitis Dressing* (Visit) ── *₹900*\n5️⃣ *BP / Sugar / Vitals Check* (Visit) ── *₹200*\n6️⃣ *Bedridden Patient Care* (Visit) ── *₹700*\n7️⃣ *Nursing Care (1 to 3 Hours)* ── *₹700*\n8️⃣ *Nursing Care (1 to 6 Hours)* ── *₹1,400*\n9️⃣ *Nursing Care (1 to 12 Hours)* ── *₹2,600*\n----------------------------------------\n📲 *Reply with number (1 to 9) to book nursing service, or 0 for Menu*`
+    };
+}
+
+function getAmbulanceMenu(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: `🚑 *AMPLR HEALTH - AMBULANCE RATE CARD*\n----------------------------------------\n1️⃣ *TOOFAN / OMNI (Patient Transport A/C)*\n    • 1-10 km: ₹1,400  |  1-50 km: ₹4,000\n    • 1-100 km: ₹6,000 |  1-200 km: ₹10,500\n    • >300 km: ₹25 / KM | Waiting: ₹300/hr\n\n2️⃣ *TEMPO TRAVELLER (Patient Transport A/C)*\n    • 1-10 km: ₹1,800  |  1-50 km: ₹5,500\n    • 1-100 km: ₹9,500 |  1-200 km: ₹16,000\n    • >300 km: ₹30 / KM | Waiting: ₹300/hr\n\n➕ *Optional Add-ons*: Paramedic (₹1,500-₹1,700) • Oxygen (₹1,500) • Ventilator (₹4,000-₹5,000)\n----------------------------------------\n📲 *Reply 1 for Toofan/Omni or 2 for Tempo Traveller to book*`
+    };
+}
+
+function getPartnerProfessionMenu() {
+    return {
+        type: 'TEXT',
+        text: `🤝 *WELCOME TO AMPLR HEALTH PARTNER NETWORK*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nGrow your healthcare services with AMPLR HEALTH.\nPlease select your profession / service category:\n\n1️⃣ 🩸 *Lab Technician (Phlebotomist)*\n2️⃣ 👩‍⚕️ *Nursing Professional*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapist*\n5️⃣ 💓 *ECG Technician*\n6️⃣ 🚑 *Ambulance Partner*\n7️⃣ 👨‍⚕️ *Doctor*\n8️⃣ 🏥 *Hospital / Clinic*\n----------------------------------------\n📲 *Reply with number (1 to 8) to get registration form, or 0 for Menu*`
+    };
 }
