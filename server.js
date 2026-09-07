@@ -99,21 +99,11 @@ const HOST = '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
     console.log(`\n======================================================`);
-    console.log(`🏥 AMPLR Health WhatsApp Bot Server Running on ${HOST}:${PORT}`);
-    console.log(`📲 Meta Webhook Verification URL: http://localhost:${PORT}/api/webhook`);
-    console.log(`📊 Admin REST API URL: http://localhost:${PORT}/api/stats`);
+    console.log(`🏥 AMPLR Health WhatsApp Bot Server Running on Port ${PORT}`);
+    console.log(`📲 Webhook Endpoint URL: /api/webhook`);
+    console.log(`📊 Admin REST API URL: /api/stats`);
     console.log(`======================================================\n`);
 });
 
-// If PORT is not 10000, also bind 10000 so Render's internal reverse proxy always connects
-if (Number(PORT) !== 10000) {
-    try {
-        app.listen(10000, HOST, () => {
-            console.log(`🏥 Render Port 10000 proxy listener active on ${HOST}:10000`);
-        });
-    } catch (e) {
-        console.log('Port 10000 fallback note:', e.message);
-    }
-}
 
 
