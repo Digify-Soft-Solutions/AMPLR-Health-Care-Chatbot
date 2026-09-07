@@ -105,5 +105,8 @@ app.listen(PORT, HOST, () => {
     console.log(`======================================================\n`);
 });
 
+export default app;
+
+
 
 
