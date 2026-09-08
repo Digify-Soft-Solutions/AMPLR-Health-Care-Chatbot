@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
 import { addLiveWhatsAppMessage } from '../data/mockDatabase.js';
@@ -30,6 +31,39 @@ function isDuplicate(key) {
         return true;
     }
     PROCESSED.set(key, now);
+    return false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /tmp FILE-BASED CROSS-LAMBDA DEDUP
+// GoShort fires 2 webhook events per incoming message. These often hit
+// different Vercel Lambda instances (each with its own empty in-memory Map).
+// /tmp is shared between Lambda instances on the SAME physical container,
+// so this second layer catches the concurrent duplicate the Map misses.
+// ─────────────────────────────────────────────────────────────────────────────
+const TMP_DEDUP_FILE = '/tmp/wa_dedup.json';
+const TMP_TTL_MS = 15_000; // 15 seconds window for /tmp layer
+
+function isTmpDuplicate(key) {
+    const now = Date.now();
+    let locks = {};
+    try {
+        if (fs.existsSync(TMP_DEDUP_FILE)) {
+            locks = JSON.parse(fs.readFileSync(TMP_DEDUP_FILE, 'utf8') || '{}');
+        }
+        // Clean expired keys
+        for (const k in locks) {
+            if (now - locks[k] > TMP_TTL_MS) delete locks[k];
+        }
+        if (locks[key] && (now - locks[key] < TMP_TTL_MS)) {
+            return true; // duplicate detected via /tmp
+        }
+        // Mark key in /tmp
+        locks[key] = now;
+        fs.writeFileSync(TMP_DEDUP_FILE, JSON.stringify(locks), 'utf8');
+    } catch (e) {
+        // /tmp unavailable — fall back to in-memory only (safe to ignore)
+    }
     return false;
 }
 
@@ -203,12 +237,19 @@ router.post('/', async (req, res) => {
         const contentKey = `${senderPhone.replace(/\D/g, '')}_${(messageText || payloadData || '').trim().toLowerCase()}`;
         const dedupKey   = rawMsgId || contentKey;
 
+        // Layer 1: in-memory Map (catches same-Lambda duplicates instantly)
         if (isDuplicate(dedupKey)) {
-            console.log(`[Webhook Duplicate Dropped] key="${dedupKey}" from ${senderPhone}`);
+            console.log(`[Webhook Duplicate Dropped - Memory] key="${dedupKey}" from ${senderPhone}`);
             return res.status(200).json({ status: 'duplicate_dropped' });
         }
-        // Also register content key so retries without wamid are caught
+        // Layer 2: /tmp file (catches cross-Lambda concurrent duplicates)
+        if (isTmpDuplicate(dedupKey)) {
+            console.log(`[Webhook Duplicate Dropped - TmpFile] key="${dedupKey}" from ${senderPhone}`);
+            return res.status(200).json({ status: 'duplicate_dropped' });
+        }
+        // Also register content key
         if (rawMsgId) isDuplicate(contentKey);
+        if (rawMsgId) isTmpDuplicate(contentKey);
 
         // ── PROCESS ────────────────────────────────────────────────────────────
         const displayName = rawBody.display_name || target.display_name ||
