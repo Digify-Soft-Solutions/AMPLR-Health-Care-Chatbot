@@ -5,7 +5,7 @@ import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { generateBookingPDF } from '../services/pdfGenerator.js';
 
 const router = express.Router();
-const RENDER_LIVE_URL = 'https://garments-erp-bot.onrender.com';
+const RENDER_LIVE_URL = process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com';
 
 // Helper to check if running in Render environment
 const isRender = !!process.env.RENDER;
