@@ -84,7 +84,8 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
             const url = `https://wa20.nuke.co.in/v6/api/whatsapp/24/${username}/messages`;
             // Timeout: 3000ms — synchronous Lambda must complete in ~3.5s total
             // so GoShort replies before its own retry window (≥5s) kicks in.
-            console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);\n            const res = await axios.post(url, payload, {
+            console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);
+            const res = await axios.post(url, payload, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 3000
             });
