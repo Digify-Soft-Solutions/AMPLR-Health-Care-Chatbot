@@ -82,12 +82,11 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
         // 1. Send Main Text/Interactive Message via AutobotChat
         if (provider === 'AUTOBOTCHAT' || token) {
             const url = `https://wa20.nuke.co.in/v6/api/whatsapp/24/${username}/messages`;
-            // Timeout: 6000ms — must resolve BEFORE Vercel Hobby's 10s Lambda limit
-            // so the catch block can run (logs error + attempts fallback) if server hangs
-            console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);
-            const res = await axios.post(url, payload, {
+            // Timeout: 3000ms — synchronous Lambda must complete in ~3.5s total
+            // so GoShort replies before its own retry window (≥5s) kicks in.
+            console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);\n            const res = await axios.post(url, payload, {
                 headers: { Authorization: `Bearer ${token}` },
-                timeout: 6000
+                timeout: 3000
             });
             console.log(`[Worker] AutobotChat response ${res.status}:`, JSON.stringify(res.data));
 

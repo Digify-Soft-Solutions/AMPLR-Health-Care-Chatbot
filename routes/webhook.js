@@ -8,17 +8,19 @@ const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'automatex_copilot_token';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEDUPLICATION STORE
-// Key design: use raw WhatsApp message ID (msgId) as the primary dedup key.
-// It is globally unique per message and stable across all retries.
-// Secondary key: phone+text hash for cases where msgId is absent.
-// TTL: 30 seconds — sufficient to absorb all WhatsApp / AutobotChat retry windows.
+// Key: real WhatsApp message wamid (whts_ref_id) — unique per message.
+// Fallback: phone+text composite key when wamid is absent.
+// TTL: 30s — absorbs all GoShort/AutobotChat retry windows.
+//
+// NOTE: On Vercel Serverless, warm Lambda instances share this Map.
+// Back-to-back retries (within ms) always hit the same warm instance → caught.
+// Cold-start concurrent hits are very rare for session-based bots.
 // ─────────────────────────────────────────────────────────────────────────────
-const PROCESSED = new Map(); // key → timestamp (ms)
-const DEDUP_TTL_MS = 30_000; // 30 seconds
+const PROCESSED = new Map();
+const DEDUP_TTL_MS = 30_000;
 
 function isDuplicate(key) {
     const now = Date.now();
-    // Purge expired keys to prevent memory leak (run occasionally)
     if (PROCESSED.size > 500) {
         for (const [k, ts] of PROCESSED) {
             if (now - ts > DEDUP_TTL_MS) PROCESSED.delete(k);
@@ -27,27 +29,22 @@ function isDuplicate(key) {
     if (PROCESSED.has(key) && now - PROCESSED.get(key) < DEDUP_TTL_MS) {
         return true;
     }
-    // Mark as processed immediately — before any async work starts
     PROCESSED.set(key, now);
     return false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bot phone numbers (digits only) — used to detect echo/outbound events
-// ─────────────────────────────────────────────────────────────────────────────
 const BOT_NUMBERS = new Set(['917425016636', '7425016636']);
 
 /**
- * GET Webhook Verification endpoint for Meta WhatsApp Cloud API & AutobotChat
+ * GET — Webhook verification (Meta / AutobotChat)
  */
 router.get('/', (req, res) => {
     const mode      = req.query['hub.mode'];
     const token     = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-
     if (mode && token) {
         if (mode === 'subscribe' && (token === VERIFY_TOKEN || token === 'automatex_copilot_token')) {
-            console.log('[Webhook Verification] Webhook verified successfully.');
+            console.log('[Webhook Verification] Verified successfully.');
             return res.status(200).send(challenge);
         }
         return res.sendStatus(403);
@@ -56,208 +53,184 @@ router.get('/', (req, res) => {
 });
 
 /**
- * POST Webhook message receiver
+ * POST — Incoming WhatsApp message handler (FULLY SYNCHRONOUS)
  *
- * CRITICAL: We return HTTP 200 IMMEDIATELY so WhatsApp / AutobotChat never
- * declares a timeout and fires a duplicate retry. All processing happens in
- * a fire-and-forget async IIFE after the response is sent.
+ * WHY SYNCHRONOUS on Vercel:
+ * Vercel Hobby Serverless stops CPU allocation immediately after res.send().
+ * Any fire-and-forget / async IIFE code after res.send() gets no CPU time
+ * and the outbound axios call silently dies (confirmed by logs showing
+ * [Worker] POST → ... with zero response/error following it).
  *
- * WHY NOT setImmediate: Vercel Serverless freezes the Lambda right after
- * res.send(), so a setImmediate callback gets killed before axios completes.
- * An unawaited async IIFE keeps a live Promise in the Node.js event loop,
- * which holds the Lambda warm until all awaited network calls finish.
+ * The correct approach on Vercel:
+ *   1. await the outbound dispatch BEFORE res.send()
+ *   2. Use a strict axios timeout (3s) so the total Lambda time stays ~3.5s
+ *   3. GoShort/WhatsApp retry window is ≥5s, so we respond before any retry
+ *   4. Our wamid-based dedup catches the rare retry that arrives on same Lambda
  */
-router.post('/', (req, res) => {
-    // Capture body NOW — before res.send() which may release the request object
+router.post('/', async (req, res) => {
     const rawBody = req.body || {};
+    console.log('[Incoming Webhook Payload]:', JSON.stringify(rawBody));
 
-    // ── STEP 1: Return 200 immediately ────────────────────────────────────────
-    res.status(200).send('EVENT_RECEIVED');
-
-    // ── STEP 2: Process asynchronously via unawaited async IIFE ──────────────
-    // DO NOT use setImmediate here — Vercel kills it before axios completes.
-    // An unawaited Promise keeps the event loop alive on all Node.js runtimes.
-    (async () => {
-        try {
-            console.log('[Incoming Webhook Payload]:', JSON.stringify(rawBody));
-
-            // ── GUARD A: Ignore pure status/receipt events ─────────────────────
-            // These event types carry no user message and must never trigger a reply.
-            const eventType = (rawBody.event || '').toUpperCase();
-            const IGNORED_EVENTS = ['DELIVERY', 'READ', 'SENT', 'OUTBOUND', 'ACK', 'ECHO'];
-            if (IGNORED_EVENTS.includes(eventType)) {
-                console.log(`[Webhook] Ignored status event: ${eventType}`);
-                return;
-            }
-
-            // ── GUARD B: Meta Cloud API — skip statuses-only payloads ───────────
-            // Meta sends {statuses:[...]} updates with no messages array
-            if (rawBody.entry) {
-                const changes = rawBody.entry[0]?.changes?.[0]?.value;
-                if (changes && changes.statuses && !changes.messages) {
-                    console.log('[Webhook] Ignored Meta statuses-only payload.');
-                    return;
-                }
-                // Also skip message_echoes (messages the bot itself sent)
-                const firstMsg = changes?.messages?.[0];
-                if (firstMsg && firstMsg.from_me === true) {
-                    console.log('[Webhook] Ignored Meta message echo (from_me=true).');
-                    return;
-                }
-            }
-
-            // ── GUARD C: AutobotChat outbound echo detection ────────────────────
-            // AutobotChat sometimes re-POSTs outbound messages back to the webhook.
-            // These typically carry event = SENT / OUTBOUND or have no user text.
-            const target = rawBody.data || rawBody.payload || rawBody.result || rawBody;
-            const isStatusPayload = (
-                (rawBody.statuses || target.statuses) &&
-                !rawBody.text && !rawBody.message && !rawBody.entry &&
-                !target.text && !target.message && !target.interactive && !target.body
-            );
-            if (isStatusPayload) {
-                console.log('[Webhook] Ignored status-only payload (no message content).');
-                return;
-            }
-
-            // ── PARSE: Extract phone number and message text ────────────────────
-            let senderPhone = null;
-            let messageText = null;
-            let payloadData = null;
-            let rawMsgId    = null;
-
-            if (rawBody.entry && rawBody.entry[0]?.changes?.[0]?.value?.messages) {
-                // Meta Cloud API payload
-                const message = rawBody.entry[0].changes[0].value.messages[0];
-                rawMsgId    = message.id; // e.g. "wamid.Abc123..."
-                senderPhone = message.from;
-
-                if (message.type === 'interactive' && message.interactive) {
-                    if (message.interactive.type === 'list_reply') {
-                        payloadData = message.interactive.list_reply.id;
-                        messageText = message.interactive.list_reply.title;
-                    } else if (message.interactive.type === 'button_reply') {
-                        payloadData = message.interactive.button_reply.id;
-                        messageText = message.interactive.button_reply.title;
-                    }
-                } else {
-                    messageText = message.text ? message.text.body : '';
-                }
-
-            } else {
-                // AutobotChat / Goshort payload
-                // CRITICAL: target.id = AutobotChat CONTACT ID (e.g. "1788844836").
-                // It is the SAME for every message from the same contact — using it as
-                // the dedup key would block all follow-up messages from the same user!
-                // whts_ref_id = real per-message WhatsApp ID (wamid) — always unique.
-                rawMsgId = target.whts_ref_id ||                          // ← real wamid (unique per message)
-                    (target.context ? target.context.id : null) ||        // ← wamid from context object
-                    (rawBody.whts_ref_id) ||                              // ← wamid at root level
-                    target.id;                                            // ← contact ID — LAST RESORT only
-
-                let rawPhone = (
-                    target.customer_phone || target.from_user || target.wa_id ||
-                    target.mobile || target.from || target.sender_id ||
-                    target.receiver || rawBody.from || rawBody.receiver
-                );
-                let cleanDigits = (rawPhone || '').toString().replace(/\D/g, '');
-
-                // If the extracted phone is the bot itself, read the patient's number
-                // from the receiver / to field instead
-                const botWabaDigits = (rawBody.wabaNumber || '').replace(/\D/g, '');
-                if (BOT_NUMBERS.has(cleanDigits) || (botWabaDigits && cleanDigits === botWabaDigits)) {
-                    rawPhone    = target.receiver || rawBody.receiver || target.to || rawBody.to;
-                    cleanDigits = (rawPhone || '').toString().replace(/\D/g, '');
-                }
-
-                senderPhone = cleanDigits || rawPhone;
-
-                // ── GUARD D: If resolved sender is still the bot, this is an echo ─
-                if (BOT_NUMBERS.has((senderPhone || '').toString().replace(/\D/g, ''))) {
-                    console.log('[Webhook] Ignored outbound echo — resolved sender is bot number.');
-                    return;
-                }
-
-                // Interactive reply handling
-                const interactiveObj = target.interactive || rawBody.interactive;
-                if (interactiveObj) {
-                    const listReply   = interactiveObj.list_reply   || (interactiveObj.type === 'list_reply'   ? interactiveObj : null);
-                    const buttonReply = interactiveObj.button_reply || (interactiveObj.type === 'button_reply' ? interactiveObj : null);
-                    if (listReply) {
-                        payloadData = listReply.id;
-                        messageText = listReply.title || listReply.id;
-                    } else if (buttonReply) {
-                        payloadData = buttonReply.id;
-                        messageText = buttonReply.title || buttonReply.id;
-                    }
-                }
-
-                if (!messageText) {
-                    if (typeof target.text === 'object' && target.text !== null) {
-                        messageText = target.text.body || target.text.text || '';
-                    } else if (typeof target.text === 'string') {
-                        messageText = target.text;
-                    } else if (typeof target.message === 'object' && target.message !== null) {
-                        messageText = target.message.text || target.message.body || '';
-                    } else if (typeof target.message === 'string') {
-                        messageText = target.message;
-                    } else {
-                        messageText = target.body || target.msg || target.query ||
-                            rawBody.text || rawBody.message || rawBody.body || '';
-                    }
-                }
-            }
-
-            console.log(`[Parsed Webhook Message] From: ${senderPhone} | Message: "${messageText}" | PayloadData: ${payloadData} | MsgId: ${rawMsgId}`);
-
-            // ── VALIDATE: Must have a phone and some content ────────────────────
-            if (!senderPhone || (!messageText && !payloadData)) {
-                console.log('[Webhook] Missing senderPhone or message content — skipped.');
-                return;
-            }
-
-            senderPhone = senderPhone.toString().trim();
-
-            // ── DEDUPLICATION ───────────────────────────────────────────────────
-            // Priority 1: Use the raw WhatsApp message ID — it is stable and unique
-            //             across all retries of the exact same message.
-            // Priority 2: Fall back to phone+content composite key.
-            const contentKey = `${senderPhone.replace(/\D/g, '')}_${(messageText || payloadData || '').trim().toLowerCase()}`;
-            const dedupKey   = rawMsgId || contentKey;
-
-            if (isDuplicate(dedupKey)) {
-                console.log(`[Webhook Duplicate Dropped] key="${dedupKey}" from ${senderPhone}`);
-                return;
-            }
-            // If we used msgId as primary key, also register the content key
-            // so that retries without a msgId header are also caught
-            if (rawMsgId && !isDuplicate(contentKey)) {
-                // isDuplicate already stored it, nothing extra needed
-            }
-
-            // ── PROCESS ─────────────────────────────────────────────────────────
-            const displayName = rawBody.display_name || target.display_name ||
-                rawBody.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name ||
-                target.name || target.pushname || null;
-
-            const botResponse = processHealthcareMessage(senderPhone, messageText, payloadData);
-
-            addLiveWhatsAppMessage(
-                senderPhone,
-                messageText || payloadData || 'Selection',
-                botResponse.text,
-                displayName
-            );
-
-            // ── DISPATCH ────────────────────────────────────────────────────────
-            const result = await sendWhatsAppMessage(senderPhone, botResponse);
-            console.log(`[Webhook Dispatch Result]:`, result);
-
-        } catch (error) {
-            console.error('[Webhook Async Processing Error]:', error.message || error);
+    try {
+        // ── GUARD A: Ignore status/delivery/echo events ────────────────────────
+        const eventType = (rawBody.event || '').toUpperCase();
+        const IGNORED_EVENTS = ['DELIVERY', 'READ', 'SENT', 'OUTBOUND', 'ACK', 'ECHO'];
+        if (IGNORED_EVENTS.includes(eventType)) {
+            console.log(`[Webhook] Ignored status event: ${eventType}`);
+            return res.status(200).json({ status: 'ignored' });
         }
-    })(); // ← unawaited: keeps Lambda alive via pending Promise
-});
 
+        // ── GUARD B: Meta Cloud API statuses-only / echo ───────────────────────
+        if (rawBody.entry) {
+            const changes = rawBody.entry[0]?.changes?.[0]?.value;
+            if (changes && changes.statuses && !changes.messages) {
+                console.log('[Webhook] Ignored Meta statuses-only payload.');
+                return res.status(200).json({ status: 'ignored' });
+            }
+            const firstMsg = changes?.messages?.[0];
+            if (firstMsg && firstMsg.from_me === true) {
+                console.log('[Webhook] Ignored Meta message echo (from_me=true).');
+                return res.status(200).json({ status: 'ignored' });
+            }
+        }
+
+        // ── GUARD C: AutobotChat status-only payload (no text content) ─────────
+        const target = rawBody.data || rawBody.payload || rawBody.result || rawBody;
+        const isStatusPayload = (
+            (rawBody.statuses || target.statuses) &&
+            !rawBody.text && !rawBody.message && !rawBody.entry &&
+            !target.text && !target.message && !target.interactive && !target.body
+        );
+        if (isStatusPayload) {
+            console.log('[Webhook] Ignored status-only payload (no message content).');
+            return res.status(200).json({ status: 'ignored' });
+        }
+
+        // ── PARSE: Extract phone, message text, message ID ─────────────────────
+        let senderPhone = null;
+        let messageText = null;
+        let payloadData = null;
+        let rawMsgId    = null;
+
+        if (rawBody.entry && rawBody.entry[0]?.changes?.[0]?.value?.messages) {
+            // Meta Cloud API
+            const message = rawBody.entry[0].changes[0].value.messages[0];
+            rawMsgId    = message.id;
+            senderPhone = message.from;
+            if (message.type === 'interactive' && message.interactive) {
+                if (message.interactive.type === 'list_reply') {
+                    payloadData = message.interactive.list_reply.id;
+                    messageText = message.interactive.list_reply.title;
+                } else if (message.interactive.type === 'button_reply') {
+                    payloadData = message.interactive.button_reply.id;
+                    messageText = message.interactive.button_reply.title;
+                }
+            } else {
+                messageText = message.text ? message.text.body : '';
+            }
+
+        } else {
+            // AutobotChat / GoShort
+            // CRITICAL: target.id = AutobotChat CONTACT ID (same for all messages
+            // from same contact). whts_ref_id = real per-message wamid (unique).
+            rawMsgId = target.whts_ref_id ||
+                (target.context ? target.context.id : null) ||
+                rawBody.whts_ref_id ||
+                target.id; // ← contact ID, last resort only
+
+            let rawPhone = (
+                target.customer_phone || target.from_user || target.wa_id ||
+                target.mobile || target.from || target.sender_id ||
+                target.receiver || rawBody.from || rawBody.receiver
+            );
+            let cleanDigits = (rawPhone || '').toString().replace(/\D/g, '');
+
+            const botWabaDigits = (rawBody.wabaNumber || '').replace(/\D/g, '');
+            if (BOT_NUMBERS.has(cleanDigits) || (botWabaDigits && cleanDigits === botWabaDigits)) {
+                rawPhone    = target.receiver || rawBody.receiver || target.to || rawBody.to;
+                cleanDigits = (rawPhone || '').toString().replace(/\D/g, '');
+            }
+
+            senderPhone = cleanDigits || rawPhone;
+
+            // GUARD D: If sender is still the bot number → outbound echo
+            if (BOT_NUMBERS.has((senderPhone || '').toString().replace(/\D/g, ''))) {
+                console.log('[Webhook] Ignored outbound echo — sender is bot number.');
+                return res.status(200).json({ status: 'ignored' });
+            }
+
+            // Interactive
+            const interactiveObj = target.interactive || rawBody.interactive;
+            if (interactiveObj) {
+                const listReply   = interactiveObj.list_reply   || (interactiveObj.type === 'list_reply'   ? interactiveObj : null);
+                const buttonReply = interactiveObj.button_reply || (interactiveObj.type === 'button_reply' ? interactiveObj : null);
+                if (listReply) {
+                    payloadData = listReply.id;
+                    messageText = listReply.title || listReply.id;
+                } else if (buttonReply) {
+                    payloadData = buttonReply.id;
+                    messageText = buttonReply.title || buttonReply.id;
+                }
+            }
+
+            if (!messageText) {
+                if (typeof target.text === 'object' && target.text !== null) {
+                    messageText = target.text.body || target.text.text || '';
+                } else if (typeof target.text === 'string') {
+                    messageText = target.text;
+                } else if (typeof target.message === 'object' && target.message !== null) {
+                    messageText = target.message.text || target.message.body || '';
+                } else if (typeof target.message === 'string') {
+                    messageText = target.message;
+                } else {
+                    messageText = target.body || target.msg || target.query ||
+                        rawBody.text || rawBody.message || rawBody.body || '';
+                }
+            }
+        }
+
+        console.log(`[Parsed] From: ${senderPhone} | Msg: "${messageText}" | MsgId: ${rawMsgId}`);
+
+        // ── VALIDATE ───────────────────────────────────────────────────────────
+        if (!senderPhone || (!messageText && !payloadData)) {
+            console.log('[Webhook] Missing senderPhone or message content — skipped.');
+            return res.status(200).json({ status: 'missing_data' });
+        }
+
+        senderPhone = senderPhone.toString().trim();
+
+        // ── DEDUPLICATION ──────────────────────────────────────────────────────
+        const contentKey = `${senderPhone.replace(/\D/g, '')}_${(messageText || payloadData || '').trim().toLowerCase()}`;
+        const dedupKey   = rawMsgId || contentKey;
+
+        if (isDuplicate(dedupKey)) {
+            console.log(`[Webhook Duplicate Dropped] key="${dedupKey}" from ${senderPhone}`);
+            return res.status(200).json({ status: 'duplicate_dropped' });
+        }
+        // Also register content key so retries without wamid are caught
+        if (rawMsgId) isDuplicate(contentKey);
+
+        // ── PROCESS ────────────────────────────────────────────────────────────
+        const displayName = rawBody.display_name || target.display_name ||
+            rawBody.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name ||
+            target.name || target.pushname || null;
+
+        const botResponse = processHealthcareMessage(senderPhone, messageText, payloadData);
+        addLiveWhatsAppMessage(senderPhone, messageText || payloadData || 'Selection', botResponse.text, displayName);
+
+        // ── DISPATCH (synchronous await — Lambda stays alive) ──────────────────
+        // axios timeout in whatsappService is 3s. Total Lambda time ~3.5s.
+        // GoShort retry window is ≥5s, so we always respond before any retry.
+        console.log(`[Webhook] Dispatching reply to ${senderPhone}...`);
+        const result = await sendWhatsAppMessage(senderPhone, botResponse);
+        console.log(`[Webhook Dispatch Result]:`, JSON.stringify(result));
+
+        return res.status(200).json({ status: 'success', result });
+
+    } catch (error) {
+        console.error('[Webhook Error]:', error.message || error);
+        return res.status(200).json({ status: 'error', message: error.message });
+    }
+});
 
 export default router;
