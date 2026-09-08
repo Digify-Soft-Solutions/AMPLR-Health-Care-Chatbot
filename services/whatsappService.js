@@ -82,11 +82,14 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
         // 1. Send Main Text/Interactive Message via AutobotChat
         if (provider === 'AUTOBOTCHAT' || token) {
             const url = `https://wa20.nuke.co.in/v6/api/whatsapp/24/${username}/messages`;
+            // Timeout: 6000ms — must resolve BEFORE Vercel Hobby's 10s Lambda limit
+            // so the catch block can run (logs error + attempts fallback) if server hangs
+            console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);
             const res = await axios.post(url, payload, {
                 headers: { Authorization: `Bearer ${token}` },
-                timeout: 10000
+                timeout: 6000
             });
-            console.log(`[Worker] Sent outbound session message via AutobotChat to ${cleanPhone}`);
+            console.log(`[Worker] AutobotChat response ${res.status}:`, JSON.stringify(res.data));
 
             // Send PDF document if provided
             if (pdfUrl) {
@@ -155,10 +158,12 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
                 text: { body: fallbackText }
             };
             const fallbackUrl = `https://wa20.nuke.co.in/v6/api/whatsapp/24/${username}/messages`;
+            console.log(`[Worker Fallback] POST → ${fallbackUrl}`);
             const res2 = await axios.post(fallbackUrl, simplePayload, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 4000  // Must fit in remaining Lambda time after primary 6s timeout
             });
-            console.log(`[Worker Fallback] Sent plain-text fallback message via AutobotChat to ${cleanPhone}`);
+            console.log(`[Worker Fallback] AutobotChat response ${res2.status}:`, JSON.stringify(res2.data));
             return { status: 'success', fallback: true, data: res2.data };
         } catch (err2) {
             console.error('[Worker Fallback Error]:', err2.response ? JSON.stringify(err2.response.data) : err2.message);

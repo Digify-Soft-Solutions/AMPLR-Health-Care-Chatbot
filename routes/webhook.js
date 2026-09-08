@@ -146,8 +146,14 @@ router.post('/', (req, res) => {
 
             } else {
                 // AutobotChat / Goshort payload
-                rawMsgId = target.id || target.whts_ref_id || rawBody.id ||
-                    (target.context ? target.context.id : null);
+                // CRITICAL: target.id = AutobotChat CONTACT ID (e.g. "1788844836").
+                // It is the SAME for every message from the same contact — using it as
+                // the dedup key would block all follow-up messages from the same user!
+                // whts_ref_id = real per-message WhatsApp ID (wamid) — always unique.
+                rawMsgId = target.whts_ref_id ||                          // ← real wamid (unique per message)
+                    (target.context ? target.context.id : null) ||        // ← wamid from context object
+                    (rawBody.whts_ref_id) ||                              // ← wamid at root level
+                    target.id;                                            // ← contact ID — LAST RESORT only
 
                 let rawPhone = (
                     target.customer_phone || target.from_user || target.wa_id ||
