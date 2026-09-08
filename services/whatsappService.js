@@ -116,9 +116,20 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
             return { status: 'success', provider: 'META', data: res.data };
         }
     } catch (error) {
-        console.error('[Worker] WhatsApp API post warning:', error.response ? JSON.stringify(error.response.data) : error.message);
-        
-        // Fallback retry using simple text payload if interactive payload was rejected
+        const statusCode = error.response ? error.response.status : null;
+        console.error(`[Worker] WhatsApp API error (HTTP ${statusCode || 'network'}):`, error.response ? JSON.stringify(error.response.data) : error.message);
+
+        // ── FALLBACK SAFETY GUARD ──────────────────────────────────────────────
+        // A 4xx response means the gateway RECEIVED our request but rejected the
+        // message format. The user may have already received a partial message.
+        // Sending a fallback here would cause a DUPLICATE delivery.
+        // Only fall back on genuine network failures (no statusCode) or 5xx errors.
+        if (statusCode && statusCode >= 400 && statusCode < 500) {
+            console.warn(`[Worker] Skipping fallback — gateway returned ${statusCode} (message likely received). No duplicate will be sent.`);
+            return { status: 'error', skippedFallback: true, httpStatus: statusCode, error: error.response?.data };
+        }
+
+        // Fallback: retry with plain-text when network / 5xx failure (message was NOT delivered)
         try {
             let fallbackText = replyText;
             if (messagePayload && messagePayload.type === 'INTERACTIVE_LIST' && messagePayload.sections) {
