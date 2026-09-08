@@ -52,6 +52,9 @@ app.use('/api/v1/webhook', webhookRoutes);
 // Admin REST APIs
 app.use('/api', apiRoutes);
 
+// Serve compiled frontend assets if available
+app.use(express.static(path.join(__dirname, 'dist')));
+
 // Root Landing / Status Page
 app.get('/', (req, res) => {
     const indexPath = path.join(__dirname, 'dist', 'index.html');
