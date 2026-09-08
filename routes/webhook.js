@@ -60,18 +60,25 @@ router.get('/', (req, res) => {
  *
  * CRITICAL: We return HTTP 200 IMMEDIATELY so WhatsApp / AutobotChat never
  * declares a timeout and fires a duplicate retry. All processing happens in
- * a fire-and-forget async block after the response is sent.
+ * a fire-and-forget async IIFE after the response is sent.
+ *
+ * WHY NOT setImmediate: Vercel Serverless freezes the Lambda right after
+ * res.send(), so a setImmediate callback gets killed before axios completes.
+ * An unawaited async IIFE keeps a live Promise in the Node.js event loop,
+ * which holds the Lambda warm until all awaited network calls finish.
  */
 router.post('/', (req, res) => {
+    // Capture body NOW — before res.send() which may release the request object
+    const rawBody = req.body || {};
+
     // ── STEP 1: Return 200 immediately ────────────────────────────────────────
-    // This MUST happen before any await. WhatsApp expects acknowledgement
-    // within ~2 seconds. Failure = automatic retry = duplicate reply.
     res.status(200).send('EVENT_RECEIVED');
 
-    // ── STEP 2: Process asynchronously (fire-and-forget) ──────────────────────
-    setImmediate(async () => {
+    // ── STEP 2: Process asynchronously via unawaited async IIFE ──────────────
+    // DO NOT use setImmediate here — Vercel kills it before axios completes.
+    // An unawaited Promise keeps the event loop alive on all Node.js runtimes.
+    (async () => {
         try {
-            const rawBody = req.body || {};
             console.log('[Incoming Webhook Payload]:', JSON.stringify(rawBody));
 
             // ── GUARD A: Ignore pure status/receipt events ─────────────────────
@@ -243,7 +250,7 @@ router.post('/', (req, res) => {
         } catch (error) {
             console.error('[Webhook Async Processing Error]:', error.message || error);
         }
-    });
+    })(); // ← unawaited: keeps Lambda alive via pending Promise
 });
 
 
