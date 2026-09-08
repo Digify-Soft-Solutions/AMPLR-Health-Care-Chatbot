@@ -1,8 +1,9 @@
 import express from 'express';
 import axios from 'axios';
-import { getBookings, updateBookingStatus, STAFF_POOL, EMERGENCY_ALERTS, SERVICES, getLiveMessages, addLiveWhatsAppMessage } from '../data/mockDatabase.js';
+import { getBookings, updateBookingStatus, STAFF_POOL, EMERGENCY_ALERTS, SERVICES, getLiveMessages, addLiveWhatsAppMessage, CONVERSATION_STATES } from '../data/mockDatabase.js';
 import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { generateBookingPDF } from '../services/pdfGenerator.js';
+import { sendWhatsAppMessage } from '../services/whatsappService.js';
 
 const router = express.Router();
 const RENDER_LIVE_URL = process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com';
@@ -160,6 +161,76 @@ router.post('/simulate-chat', async (req, res) => {
         success: true,
         userMessage: message,
         botReply
+    });
+});
+
+// Get current slot booking info for webview
+router.get('/slot-info', (req, res) => {
+    let phone = (req.query.phone || '').toString().replace(/\D/g, '');
+    if (phone.length === 10) phone = '91' + phone;
+    const state = CONVERSATION_STATES[phone];
+
+    if (!state || !state.data) {
+        return res.json({
+            patientName: 'Valued Patient',
+            serviceName: 'Healthcare Service',
+            fee: 800
+        });
+    }
+
+    const serviceName = state.data.selectedSubService || state.data.selectedService || 'Home Healthcare Service';
+    res.json({
+        patientName: state.data.patientName || 'Patient',
+        serviceName: serviceName,
+        fee: state.data.fee || 800,
+        lang: state.lang || 'en'
+    });
+});
+
+// Confirm appointment slot from Interactive Calendar & Clock Webview
+router.post('/confirm-slot', async (req, res) => {
+    let { phone, date, timeSlot } = req.body;
+    let cleanPhone = (phone || '').toString().replace(/\D/g, '');
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    if (!cleanPhone || !date || !timeSlot) {
+        return res.status(400).json({ error: 'Missing phone, date, or timeSlot' });
+    }
+
+    if (!CONVERSATION_STATES[cleanPhone]) {
+        CONVERSATION_STATES[cleanPhone] = { step: 'CAPTURE_HOUSE_ADDRESS', lang: 'en', data: {} };
+    }
+
+    const state = CONVERSATION_STATES[cleanPhone];
+    state.data.appointmentDate = date;
+    state.data.timeSlot = timeSlot;
+    state.data.timeSlotLabel = timeSlot;
+    state.step = 'CAPTURE_HOUSE_ADDRESS';
+
+    // Outbound WhatsApp confirmation message
+    const isTelugu = state.lang === 'te';
+    const whatsappText = isTelugu
+        ? `✅ *క్యాలెండర్ ద్వారా స్లాట్ నిర్ధారించబడింది!*\n----------------------------------------\n📅 *తేదీ*: *${date}*\n⏰ *సమయం*: *${timeSlot} (IST)*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)`
+        : `✅ *APPOINTMENT SLOT CONFIRMED VIA CALENDAR!*\n----------------------------------------\n📅 *Date*: *${date}*\n⏰ *Time*: *${timeSlot} (IST)*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Tonk Road*)`;
+
+    // Also sync to Render if local
+    if (!isRender) {
+        try {
+            await axios.post(`${RENDER_LIVE_URL}/api/confirm-slot`, { phone: cleanPhone, date, timeSlot }, { timeout: 4000 });
+        } catch (e) {}
+    }
+
+    try {
+        await sendWhatsAppMessage(cleanPhone, { type: 'TEXT', text: whatsappText });
+    } catch (e) {
+        console.error('[Confirm Slot WhatsApp Notification Error]:', e.message);
+    }
+
+    res.json({
+        success: true,
+        date,
+        timeSlot,
+        nextStep: 'CAPTURE_HOUSE_ADDRESS'
     });
 });
 

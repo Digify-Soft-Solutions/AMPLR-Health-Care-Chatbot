@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AMPLR Health - Select Appointment Date & Time</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d9488;
+            --primary-dark: #0f766e;
+            --primary-light: #ccfbf1;
+            --accent: #10b981;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-600: #475569;
+            --slate-400: #94a3b8;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --white: #ffffff;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f0fdfa;
+            color: var(--slate-900);
+            min-height: 100vh;
+            padding-bottom: 110px;
+        }
+
+        /* Top Header */
+        .header {
+            background: var(--white);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--slate-200);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #0d9488, #059669);
+            color: var(--white);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+        }
+
+        .brand-text h1 {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--slate-900);
+            letter-spacing: -0.3px;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--slate-600);
+            font-weight: 600;
+        }
+
+        .badge-live {
+            background: #ecfdf5;
+            color: #059669;
+            border: 1px solid #a7f3d0;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-live span {
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .container {
+            max-width: 540px;
+            margin: 0 auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* Patient Card */
+        .patient-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .patient-info h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--slate-900);
+        }
+
+        .patient-info p {
+            font-size: 12px;
+            color: var(--slate-600);
+            margin-top: 2px;
+        }
+
+        .service-badge {
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            color: var(--primary-dark);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* Card Section */
+        .section-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--slate-900);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ist-tag {
+            font-size: 11px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* Calendar Controls */
+        .cal-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .cal-month {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--slate-900);
+        }
+
+        .cal-btn {
+            background: var(--slate-100);
+            border: 1px solid var(--slate-200);
+            color: var(--slate-800);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .cal-btn:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        /* Calendar Grid */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            text-align: center;
+        }
+
+        .cal-day-name {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--slate-400);
+            padding: 6px 0;
+            text-transform: uppercase;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--slate-800);
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            position: relative;
+            transition: all 0.15s ease;
+        }
+
+        .cal-day:hover:not(.disabled) {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .cal-day.disabled {
+            color: #cbd5e1;
+            cursor: not-allowed;
+            background: transparent;
+        }
+
+        .cal-day.today {
+            border-color: #0d9488;
+            font-weight: 800;
+        }
+
+        .cal-day.selected {
+            background: linear-gradient(135deg, #0d9488, #0f766e) !important;
+            color: var(--white) !important;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+            transform: scale(1.04);
+        }
+
+        .cal-day .dot {
+            width: 4px;
+            height: 4px;
+            background: currentColor;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+
+        /* Clock / Time Slots */
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 10px;
+        }
+
+        @media (min-width: 420px) {
+            .slot-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .slot-pill {
+            background: var(--slate-50);
+            border: 1.5px solid var(--slate-200);
+            border-radius: 12px;
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .slot-pill:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .slot-pill.selected {
+            background: #f0fdfa;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+        }
+
+        .slot-info-col {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slot-icon {
+            font-size: 18px;
+        }
+
+        .slot-text h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--slate-900);
+        }
+
+        .slot-text p {
+            font-size: 11px;
+            color: var(--slate-600);
+            font-family: monospace;
+        }
+
+        .slot-radio {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--slate-300);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .slot-pill.selected .slot-radio {
+            border-color: var(--primary);
+            background: var(--primary);
+        }
+
+        .slot-pill.selected .slot-radio::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--white);
+            border-radius: 50%;
+        }
+
+        /* Bottom Action Bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border-top: 1px solid var(--slate-200);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            z-index: 100;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+        }
+
+        .summary-box {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .summary-box span.label {
+            font-size: 11px;
+            color: var(--slate-600);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .summary-box span.val {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .confirm-btn {
+            background: linear-gradient(135deg, #0d9488, #0f766e);
+            color: var(--white);
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .confirm-btn:active {
+            transform: scale(0.97);
+        }
+
+        .confirm-btn:disabled {
+            background: var(--slate-300);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Success Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .success-card {
+            background: var(--white);
+            border-radius: 24px;
+            padding: 32px 24px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: popup 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popup {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-icon {
+            width: 72px;
+            height: 72px;
+            background: #d1fae5;
+            color: #059669;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 16px;
+            box-shadow: 0 8px 20px rgba(5, 150, 105, 0.2);
+        }
+
+        .success-card h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--slate-900);
+        }
+
+        .success-card p {
+            font-size: 13px;
+            color: var(--slate-600);
+            margin: 8px 0 20px;
+            line-height: 1.5;
+        }
+
+        .slot-confirm-badge {
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            color: var(--primary-dark);
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: inline-block;
+        }
+
+        .wa-btn {
+            background: #25d366;
+            color: var(--white);
+            text-decoration: none;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="brand">
+            <div class="brand-icon">🏥</div>
+            <div class="brand-text">
+                <h1>AMPLR HEALTH</h1>
+                <p>Brings Hospital Care to Your Home</p>
+            </div>
+        </div>
+        <div class="badge-live">
+            <span></span> Live Scheduler
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Patient Info Card -->
+        <div class="patient-card">
+            <div class="patient-info">
+                <h2 id="patientNameDisplay">Loading Patient...</h2>
+                <p id="patientPhoneDisplay">WhatsApp Direct Booking</p>
+            </div>
+            <div class="service-badge" id="serviceNameDisplay">
+                Healthcare Service
+            </div>
+        </div>
+
+        <!-- Calendar Card -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>📅</span>
+                    <span>Google-Style Appointment Calendar</span>
+                </div>
+            </div>
+
+            <div class="cal-nav">
+                <button class="cal-btn" id="prevMonthBtn">&lt;</button>
+                <div class="cal-month" id="monthYearDisplay">Month 2026</div>
+                <button class="cal-btn" id="nextMonthBtn">&gt;</button>
+            </div>
+
+            <div class="cal-grid">
+                <div class="cal-day-name">Sun</div>
+                <div class="cal-day-name">Mon</div>
+                <div class="cal-day-name">Tue</div>
+                <div class="cal-day-name">Wed</div>
+                <div class="cal-day-name">Thu</div>
+                <div class="cal-day-name">Fri</div>
+                <div class="cal-day-name">Sat</div>
+            </div>
+            <div class="cal-grid" id="calendarDaysGrid" style="margin-top: 6px;"></div>
+        </div>
+
+        <!-- Indian Standard Time (IST) Clock & Slots -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>⏰</span>
+                    <span>Indian Standard Time (IST) Slots</span>
+                </div>
+                <span class="ist-tag" id="liveIstClock">🇮🇳 IST: --:--</span>
+            </div>
+
+            <div class="slot-grid" id="slotsContainer">
+                <div class="slot-pill selected" data-slot="08:00 AM - 10:00 AM" data-label="Morning (08:00 AM – 10:00 AM IST)">
+                    <div class="slot-info-col">
+                        <span class="slot-icon">🌅</span>
+                        <div class="slot-text">
+                            <h3>Morning Slot</h3>
+                            <p>08:00 AM – 10:00 AM IST</p>
+                        </div>
+                    </div>
+                    <div class="slot-radio"></div>
+                </div>
+
+                <div class="slot-pill" data-slot="11:00 AM - 01:00 PM" data-label="Midday (11:00 AM – 01:00 PM IST)">
+                    <div class="slot-info-col">
+                        <span class="slot-icon">☀️</span>
+                        <div class="slot-text">
+                            <h3>Midday Slot</h3>
+                            <p>11:00 AM – 01:00 PM IST</p>
+                        </div>
+                    </div>
+                    <div class="slot-radio"></div>
+                </div>
+
+                <div class="slot-pill" data-slot="02:00 PM - 04:00 PM" data-label="Afternoon (02:00 PM – 04:00 PM IST)">
+                    <div class="slot-info-col">
+                        <span class="slot-icon">🌤️</span>
+                        <div class="slot-text">
+                            <h3>Afternoon Slot</h3>
+                            <p>02:00 PM – 04:00 PM IST</p>
+                        </div>
+                    </div>
+                    <div class="slot-radio"></div>
+                </div>
+
+                <div class="slot-pill" data-slot="05:00 PM - 07:00 PM" data-label="Evening (05:00 PM – 07:00 PM IST)">
+                    <div class="slot-info-col">
+                        <span class="slot-icon">🌆</span>
+                        <div class="slot-text">
+                            <h3>Evening Slot</h3>
+                            <p>05:00 PM – 07:00 PM IST</p>
+                        </div>
+                    </div>
+                    <div class="slot-radio"></div>
+                </div>
+
+                <div class="slot-pill" data-slot="08:00 PM - 10:00 PM" data-label="Night Care (08:00 PM – 10:00 PM IST)">
+                    <div class="slot-info-col">
+                        <span class="slot-icon">🌙</span>
+                        <div class="slot-text">
+                            <h3>Night Care</h3>
+                            <p>08:00 PM – 10:00 PM IST</p>
+                        </div>
+                    </div>
+                    <div class="slot-radio"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Sticky Bar -->
+    <div class="bottom-bar">
+        <div class="summary-box">
+            <span class="label">Selected Slot (IST)</span>
+            <span class="val" id="bottomSummaryText">Loading slot...</span>
+        </div>
+        <button class="confirm-btn" id="confirmSlotBtn">
+            <span>Confirm Slot</span>
+            <span>➔</span>
+        </button>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="overlay" id="successOverlay">
+        <div class="success-card">
+            <div class="success-icon">✓</div>
+            <h2>Slot Confirmed!</h2>
+            <p>Your appointment date &amp; time slot have been locked. A confirmation message has been dispatched to your WhatsApp.</p>
+            <div class="slot-confirm-badge" id="modalSlotBadge">Wed, 09 Sep 2026 • 11:00 AM</div>
+            <a href="https://wa.me/917425016636" class="wa-btn" id="returnWaLink">
+                <span>💬 Return to WhatsApp for Address</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let userPhone = urlParams.get('phone') || '';
+
+        // Live IST Clock
+        function updateLiveIstClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+            document.getElementById('liveIstClock').textContent = `🇮🇳 IST: ${timeStr}`;
+        }
+        setInterval(updateLiveIstClock, 1000);
+        updateLiveIstClock();
+
+        // State
+        let currentDate = new Date();
+        let selectedDate = new Date();
+        let selectedTimeSlot = '08:00 AM - 10:00 AM';
+        let selectedTimeSlotLabel = 'Morning (08:00 AM – 10:00 AM IST)';
+
+        // Load Patient and Service Info
+        async function loadSlotInfo() {
+            if (!userPhone) return;
+            try {
+                const res = await fetch(`/api/slot-info?phone=${userPhone}`);
+                const data = await res.json();
+                if (data.patientName) {
+                    document.getElementById('patientNameDisplay').textContent = data.patientName;
+                }
+                if (data.serviceName) {
+                    document.getElementById('serviceNameDisplay').textContent = `${data.serviceName} (₹${data.fee || 800})`;
+                }
+                document.getElementById('patientPhoneDisplay').textContent = `+${userPhone}`;
+            } catch (e) {
+                console.warn('Slot info error:', e);
+            }
+        }
+        loadSlotInfo();
+
+        // Format Date Helper
+        function formatFullDate(d) {
+            return d.toLocaleDateString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+
+        function updateBottomBar() {
+            const dateStr = formatFullDate(selectedDate);
+            document.getElementById('bottomSummaryText').textContent = `${dateStr} • ${selectedTimeSlot}`;
+        }
+
+        // Calendar Rendering
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            document.getElementById('monthYearDisplay').textContent = `${monthNames[month]} ${year}`;
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const grid = document.getElementById('calendarDaysGrid');
+            grid.innerHTML = '';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Empty cells for alignment
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                grid.appendChild(emptyCell);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayDate = new Date(year, month, day);
+                dayDate.setHours(0, 0, 0, 0);
+
+                const cell = document.createElement('div');
+                cell.className = 'cal-day';
+                cell.textContent = day;
+
+                const isPast = dayDate < today;
+                const isToday = dayDate.getTime() === today.getTime();
+                const isSelected = selectedDate && dayDate.getTime() === selectedDate.setHours(0,0,0,0);
+
+                if (isPast) {
+                    cell.classList.add('disabled');
+                } else {
+                    if (isToday) cell.classList.add('today');
+                    if (isSelected) cell.classList.add('selected');
+
+                    cell.addEventListener('click', () => {
+                        selectedDate = new Date(year, month, day);
+                        renderCalendar();
+                        updateBottomBar();
+                    });
+                }
+
+                grid.appendChild(cell);
+            }
+
+            updateBottomBar();
+        }
+
+        document.getElementById('prevMonthBtn').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        });
+
+        document.getElementById('nextMonthBtn').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        });
+
+        // Time Slot Selection
+        const slotPills = document.querySelectorAll('.slot-pill');
+        slotPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                slotPills.forEach(p => p.classList.remove('selected'));
+                pill.classList.add('selected');
+                selectedTimeSlot = pill.getAttribute('data-slot');
+                selectedTimeSlotLabel = pill.getAttribute('data-label');
+                updateBottomBar();
+            });
+        });
+
+        // Confirm Slot Button
+        document.getElementById('confirmSlotBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirmSlotBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>Saving...</span>';
+
+            const payload = {
+                phone: userPhone,
+                date: formatFullDate(selectedDate),
+                timeSlot: selectedTimeSlotLabel
+            };
+
+            try {
+                const res = await fetch('/api/confirm-slot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+
+                // Show modal
+                document.getElementById('modalSlotBadge').textContent = `${payload.date} • ${selectedTimeSlot}`;
+                document.getElementById('successOverlay').classList.add('active');
+
+                // Return URL for WhatsApp
+                const returnLink = document.getElementById('returnWaLink');
+                if (userPhone) {
+                    returnLink.href = `https://wa.me/${userPhone}`;
+                }
+            } catch (err) {
+                alert('Slot confirmation failed. Please try again or reply on WhatsApp.');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Confirm Slot</span><span>➔</span>';
+            }
+        });
+
+        renderCalendar();
+    </script>
+</body>
+</html>

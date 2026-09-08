@@ -52,8 +52,14 @@ app.use('/api/v1/webhook', webhookRoutes);
 // Admin REST APIs
 app.use('/api', apiRoutes);
 
-// Serve compiled frontend assets if available
+// Serve public and compiled assets
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
+
+// Interactive Calendar & IST Clock Slot Picker Webview
+app.get('/select-slot', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'select-slot.html'));
+});
 
 // Root Landing / Status Page
 app.get('/', (req, res) => {

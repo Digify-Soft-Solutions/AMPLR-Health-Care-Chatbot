@@ -294,11 +294,15 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
             state.data.patientName = rawText.trim();
             state.step = 'SELECT_APPOINTMENT_DATE';
+            const serviceBooked = state.data.selectedSubService || state.data.selectedService || 'Healthcare Service';
+            const BASE_URL = (process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com').replace(/\/$/, '');
+            const slotPickerUrl = `${BASE_URL}/select-slot?phone=${cleanUserPhone}`;
+
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `👤 *రోగి వివరాలు*: *${state.data.patientName}*\n----------------------------------------\n📅 *దశ 2/5: అపాయింట్‌మెంట్ తేదీ ఎంచుకోండి*\n\n1️⃣ 📅 *ఈరోజు* (${getISTDateString(0)})\n2️⃣ 📅 *రేపు* (${getISTDateString(1)})\n3️⃣ 📅 *ఎల్లుండి* (${getISTDateString(2)})\n4️⃣ 🗓️ *ఇతర తేదీ* (DD/MM/YYYY నమోదు చేయండి)\n----------------------------------------\n📲 *తేదీ కోసం 1, 2, 3 లేదా DD/MM/YYYY టైప్ చేయండి*`
-                    : `👤 *Patient*: *${state.data.patientName}*\n----------------------------------------\n📅 *STEP 2 OF 5: SELECT APPOINTMENT DATE*\n\nPlease choose your preferred appointment date:\n\n1️⃣ 📅 *Today* (${getISTDateString(0)})\n2️⃣ 📅 *Tomorrow* (${getISTDateString(1)})\n3️⃣ 📅 *Day After Tomorrow* (${getISTDateString(2)})\n4️⃣ 🗓️ *Custom Date* (Type as DD/MM/YYYY)\n----------------------------------------\n📲 *Reply with 1, 2, 3 or type DD/MM/YYYY (e.g. 15/09/2026)*`
+                    ? `👤 *రోగి*: *${state.data.patientName}*\n🩺 *సేవ*: *${serviceBooked}*\n----------------------------------------\n📅 *దశ 2 & 3: ఇంటరాక్టివ్ క్యాలెండర్ & గడియారం*\n\n👉 *తేదీ మరియు సమయం ఎంచుకోవడానికి క్రింది లింక్ క్లిక్ చేయండి:*\n🔗 ${slotPickerUrl}\n\n_గూగుల్-స్టైల్ క్యాలెండర్ మరియు ఇండియన్ స్టాండర్డ్ టైమ్ (IST) క్లాక్ తెరవబడుతుంది._\n----------------------------------------\n_(లేదా ఇక్కడ రిప్లై ఇవ్వండి: 1 for ఈరోజు, 2 for రేపు)_`
+                    : `👤 *Patient*: *${state.data.patientName}*\n🩺 *Service*: *${serviceBooked}*\n----------------------------------------\n📅 *STEP 2 & 3: INTERACTIVE CALENDAR & CLOCK*\n\n👉 *Tap below to open Visual Google Calendar & IST Clock:*\n🔗 ${slotPickerUrl}\n\n_Select your appointment date on the visual calendar grid and convenient Indian Standard Time slot._\n----------------------------------------\n_(Or reply directly: 1 for Today, 2 for Tomorrow)_`
             };
         }
 
