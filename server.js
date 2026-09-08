@@ -103,9 +103,27 @@ app.listen(PORT, HOST, () => {
     console.log(`📲 Webhook Endpoint URL: /api/webhook`);
     console.log(`📊 Admin REST API URL: /api/stats`);
     console.log(`======================================================\n`);
+
+    // ── KEEP-ALIVE PING (Render Free Tier) ────────────────────────────────────
+    // Render free instances sleep after 15 minutes of inactivity.
+    // Self-ping every 14 minutes keeps the server awake 24/7.
+    const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+    if (SELF_URL) {
+        setInterval(() => {
+            import('https').then(mod => {
+                mod.get(`${SELF_URL}/health`, (res) => {
+                    console.log(`[Keep-Alive] Ping ${SELF_URL}/health → ${res.statusCode}`);
+                }).on('error', (err) => {
+                    console.warn(`[Keep-Alive] Ping failed: ${err.message}`);
+                });
+            });
+        }, 14 * 60 * 1000); // every 14 minutes
+        console.log(`[Keep-Alive] Self-ping enabled → ${SELF_URL}/health every 14 min`);
+    }
 });
 
 export default app;
+
 
 
 
