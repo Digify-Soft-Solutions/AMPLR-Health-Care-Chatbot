@@ -1,0 +1,16 @@
+name: 24/7 Render Keep-Alive
+
+on:
+  schedule:
+    # Triggered automatically every 14 minutes
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Healthcare Bot Health Check
+        run: |
+          echo "Pinging Render server to keep it awake..."
+          curl -s -f -m 30 "https://health-care-chat-bot-4yki.onrender.com/health" || echo "Ping dispatched"

@@ -86,10 +86,21 @@ app.get('/', (req, res) => {
     `);
 });
 
+import https from 'https';
+
+// Keep-alive tracking stats
+const keepAliveStats = {
+    totalPings: 0,
+    lastPingAt: null,
+    lastStatus: null
+};
+
 app.get('/health', (req, res) => {
     res.json({
         status: 'UP',
         service: 'AMPLR Health WhatsApp Bot & ERP Backend',
+        uptimeSeconds: Math.floor(process.uptime()),
+        keepAlive: keepAliveStats,
         timestamp: new Date().toISOString()
     });
 });
@@ -104,22 +115,37 @@ app.listen(PORT, HOST, () => {
     console.log(`📊 Admin REST API URL: /api/stats`);
     console.log(`======================================================\n`);
 
-    // ── KEEP-ALIVE PING (Render Free Tier) ────────────────────────────────────
+    // ── KEEP-ALIVE PING (Render Free Tier 24/7 Awake) ───────────────────────────
     // Render free instances sleep after 15 minutes of inactivity.
-    // Self-ping every 14 minutes keeps the server awake 24/7.
-    const SELF_URL = process.env.RENDER_EXTERNAL_URL;
-    if (SELF_URL) {
-        setInterval(() => {
-            import('https').then(mod => {
-                mod.get(`${SELF_URL}/health`, (res) => {
-                    console.log(`[Keep-Alive] Ping ${SELF_URL}/health → ${res.statusCode}`);
-                }).on('error', (err) => {
-                    console.warn(`[Keep-Alive] Ping failed: ${err.message}`);
-                });
-            });
-        }, 14 * 60 * 1000); // every 14 minutes
-        console.log(`[Keep-Alive] Self-ping enabled → ${SELF_URL}/health every 14 min`);
+    // Self-pinging every 8 minutes resets the Render inactivity timer so it NEVER sleeps.
+    const SELF_URL = (process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com').replace(/\/$/, '');
+    
+    function performKeepAlivePing() {
+        const pingUrl = `${SELF_URL}/health`;
+        const req = https.get(pingUrl, (res) => {
+            keepAliveStats.totalPings++;
+            keepAliveStats.lastPingAt = new Date().toISOString();
+            keepAliveStats.lastStatus = res.statusCode;
+            console.log(`[Keep-Alive] 🔄 Self-ping #${keepAliveStats.totalPings} to ${pingUrl} → ${res.statusCode}`);
+        });
+
+        req.on('error', (err) => {
+            keepAliveStats.lastPingAt = new Date().toISOString();
+            keepAliveStats.lastStatus = `Error: ${err.message}`;
+            console.warn(`[Keep-Alive] ⚠️ Self-ping failed: ${err.message}`);
+        });
+
+        req.setTimeout(10000, () => {
+            req.destroy();
+        });
     }
+
+    // Initial ping 15 seconds after boot to confirm connectivity
+    setTimeout(performKeepAlivePing, 15 * 1000);
+
+    // Recurring ping every 8 minutes (well before Render's 15-minute inactivity limit)
+    setInterval(performKeepAlivePing, 8 * 60 * 1000);
+    console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 8 min)`);
 });
 
 export default app;
