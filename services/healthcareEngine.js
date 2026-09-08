@@ -31,6 +31,40 @@ const EMERGENCY_KEYWORDS = [
     'heavy bleeding', 'stroke', 'heart attack', 'severe pain', '108'
 ];
 
+export const TIME_SLOT_OPTIONS = {
+    '1': { label: '🌅 Morning Slot (08:00 AM – 10:00 AM IST)', short: '08:00 AM - 10:00 AM', te: '🌅 ఉదయం స్లాట్ (08:00 AM – 10:00 AM IST)' },
+    '2': { label: '☀️ Midday Slot (11:00 AM – 01:00 PM IST)', short: '11:00 AM - 01:00 PM', te: '☀️ మధ్యాహ్నం స్లాట్ (11:00 AM – 01:00 PM IST)' },
+    '3': { label: '🌤️ Afternoon Slot (02:00 PM – 04:00 PM IST)', short: '02:00 PM - 04:00 PM', te: '🌤️ అపరాహ్నం స్లాట్ (02:00 PM – 04:00 PM IST)' },
+    '4': { label: '🌆 Evening Slot (05:00 PM – 07:00 PM IST)', short: '05:00 PM - 07:00 PM', te: '🌆 సాయంత్రం స్లాట్ (05:00 PM – 07:00 PM IST)' },
+    '5': { label: '🌙 Night Care Slot (08:00 PM – 10:00 PM IST)', short: '08:00 PM - 10:00 PM', te: '🌙 రాత్రి స్లాట్ (08:00 PM – 10:00 PM IST)' }
+};
+
+export function getISTDateString(offsetDays = 0) {
+    const d = new Date(Date.now() + (offsetDays * 86400000));
+    return d.toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+export function extractServiceFee(serviceStr) {
+    if (!serviceStr) return 800;
+    const match = serviceStr.match(/₹([0-9,]+)/);
+    if (match) {
+        return parseInt(match[1].replace(/,/g, ''), 10);
+    }
+    if (serviceStr.includes('Lab')) return 500;
+    if (serviceStr.includes('Physio')) return 900;
+    if (serviceStr.includes('ECG')) return 1100;
+    if (serviceStr.includes('Caregiver') || serviceStr.includes('Caretaker')) return 1200;
+    if (serviceStr.includes('Ambulance')) return 1500;
+    if (serviceStr.includes('Doctor')) return 499;
+    return 700;
+}
+
 export function processHealthcareMessage(userPhone, messageText, payloadData = null) {
     let cleanUserPhone = (userPhone || '').toString().replace(/\D/g, '');
     if (cleanUserPhone.length === 10) cleanUserPhone = '91' + cleanUserPhone;
@@ -246,58 +280,211 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             };
         }
 
-        // --- CAPTURE PATIENT NAME ---
+        // --- CAPTURE PATIENT NAME & AGE ---
         case 'CAPTURE_PATIENT_NAME': {
-            state.data.patientName = rawText;
-            state.step = 'CAPTURE_DATE_TIME';
+            const hasLetters = /[a-zA-Z\u0C00-\u0C7F]{2,}/.test(rawText);
+            if (!hasLetters) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *చెల్లని పేరు!* దయచేసి సరైన రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *రమేష్ శర్మ, 45*):`
+                        : `❌ *Invalid Patient Name!* Please enter a valid patient name and age (e.g. *Rahul Sharma, 45*):`
+                };
+            }
+
+            state.data.patientName = rawText.trim();
+            state.step = 'SELECT_APPOINTMENT_DATE';
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `👤 *రోగి వివరాలు*: *${state.data.patientName}*\n----------------------------------------\n📅 *దశ 2/3: కావలసిన తేదీ మరియు సమయం*\n\nసేవ ఏ రోజు మరియు ఏ సమయానికి కావాలి? (ఉదా: *రేపు ఉదయం 10 గంటలకు* లేదా *Today 5 PM*):`
-                    : `👤 *Patient Details*: *${state.data.patientName}*\n----------------------------------------\n📅 *STEP 2 OF 3: PREFERRED DATE & TIME*\n\nWhen would you like the service? (e.g. *Today 4:00 PM* or *Tomorrow 10:00 AM*):`
+                    ? `👤 *రోగి వివరాలు*: *${state.data.patientName}*\n----------------------------------------\n📅 *దశ 2/5: అపాయింట్‌మెంట్ తేదీ ఎంచుకోండి*\n\n1️⃣ 📅 *ఈరోజు* (${getISTDateString(0)})\n2️⃣ 📅 *రేపు* (${getISTDateString(1)})\n3️⃣ 📅 *ఎల్లుండి* (${getISTDateString(2)})\n4️⃣ 🗓️ *ఇతర తేదీ* (DD/MM/YYYY నమోదు చేయండి)\n----------------------------------------\n📲 *తేదీ కోసం 1, 2, 3 లేదా DD/MM/YYYY టైప్ చేయండి*`
+                    : `👤 *Patient*: *${state.data.patientName}*\n----------------------------------------\n📅 *STEP 2 OF 5: SELECT APPOINTMENT DATE*\n\nPlease choose your preferred appointment date:\n\n1️⃣ 📅 *Today* (${getISTDateString(0)})\n2️⃣ 📅 *Tomorrow* (${getISTDateString(1)})\n3️⃣ 📅 *Day After Tomorrow* (${getISTDateString(2)})\n4️⃣ 🗓️ *Custom Date* (Type as DD/MM/YYYY)\n----------------------------------------\n📲 *Reply with 1, 2, 3 or type DD/MM/YYYY (e.g. 15/09/2026)*`
             };
         }
 
-        // --- CAPTURE DATE & TIME ---
-        case 'CAPTURE_DATE_TIME': {
-            state.data.dateTime = rawText;
-            state.step = 'CAPTURE_LOCATION';
+        // --- SELECT APPOINTMENT DATE ---
+        case 'SELECT_APPOINTMENT_DATE': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+
+            if (text === '1' || text.includes('today') || text.includes('ఈరోజు')) {
+                state.data.appointmentDate = getISTDateString(0);
+            } else if (text === '2' || text.includes('tomorrow') || text.includes('రేపు')) {
+                state.data.appointmentDate = getISTDateString(1);
+            } else if (text === '3' || text.includes('day after') || text.includes('ఎల్లుండి')) {
+                state.data.appointmentDate = getISTDateString(2);
+            } else if (/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.test(rawText.trim())) {
+                state.data.appointmentDate = rawText.trim();
+            } else {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *దయచేసి సరైన తేదీని ఎంచుకోండి:*\nఈరోజు కోసం *1*, రేపు కోసం *2*, ఎల్లుండి కోసం *3* లేదా DD/MM/YYYY నమోదు చేయండి.`
+                        : `❌ *Please select a valid date:*\nReply *1* for Today, *2* for Tomorrow, *3* for Day After Tomorrow, or enter *DD/MM/YYYY*.`
+                };
+            }
+
+            state.step = 'SELECT_TIME_SLOT';
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `⏰ *సమయం*: *${state.data.dateTime}*\n----------------------------------------\n📍 *దశ 3/3: సర్వీస్ లొకేషన్ / చిరునామా*\n\nదయచేసి మీ ప్రాంతం, ల్యాండ్‌మార్క్ లేదా పిన్‌కోడ్ నమోదు చేయండి:`
-                    : `⏰ *Date & Time*: *${state.data.dateTime}*\n----------------------------------------\n📍 *STEP 3 OF 3: SERVICE ADDRESS / LOCATION*\n\nPlease enter your **Home Address, Landmark, or Pincode**:`
+                    ? `📅 *ఎంపిక చేసిన తేదీ*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *దశ 3/5: సమయ స్లాట్ (IST) ఎంచుకోండి*\n\n1️⃣ 🌅 *ఉదయం స్లాట్* (08:00 AM – 10:00 AM IST)\n2️⃣ ☀️ *మధ్యాహ్నం స్లాట్* (11:00 AM – 01:00 PM IST)\n3️⃣ 🌤️ *అపరాహ్నం స్లాట్* (02:00 PM – 04:00 PM IST)\n4️⃣ 🌆 *సాయంత్రం స్లాట్* (05:00 PM – 07:00 PM IST)\n5️⃣ 🌙 *రాత్రి స్లాట్* (08:00 PM – 10:00 PM IST)\n----------------------------------------\n📲 *స్లాట్ ఎంపిక కోసం 1 నుండి 5 రిప్లై ఇవ్వండి*`
+                    : `📅 *Selected Date*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *STEP 3 OF 5: PREFERRED TIME SLOT (IST)*\n\nPlease select your convenient Indian Standard Time slot:\n\n1️⃣ 🌅 *Morning* (08:00 AM – 10:00 AM IST)\n2️⃣ ☀️ *Midday* (11:00 AM – 01:00 PM IST)\n3️⃣ 🌤️ *Afternoon* (02:00 PM – 04:00 PM IST)\n4️⃣ 🌆 *Evening* (05:00 PM – 07:00 PM IST)\n5️⃣ 🌙 *Night Care* (08:00 PM – 10:00 PM IST)\n----------------------------------------\n📲 *Reply with number (1 to 5)*`
             };
         }
 
-        // --- CAPTURE LOCATION & FINALIZE BOOKING ---
-        case 'CAPTURE_LOCATION': {
-            state.data.location = rawText;
-            const bookingId = 'AMPLR-' + Math.floor(10000 + Math.random() * 90000);
+        // --- SELECT TIME SLOT ---
+        case 'SELECT_TIME_SLOT': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
 
-            addBooking({
-                id: bookingId,
-                patientName: state.data.patientName,
-                serviceName: state.data.selectedSubService || state.data.selectedService,
-                dateTime: state.data.dateTime,
-                location: state.data.location,
-                phone: userPhone,
-                status: 'CONFIRMED'
-            });
+            const slotObj = TIME_SLOT_OPTIONS[text];
+            if (!slotObj) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *దయచేసి సరైన సమయ స్లాట్‌ను (1 నుండి 5) ఎంచుకోండి:*`
+                        : `❌ *Invalid Option!* Please select a valid time slot number (*1 to 5*):`
+                };
+            }
 
+            state.data.timeSlot = slotObj.short;
+            state.data.timeSlotLabel = isTelugu ? slotObj.te : slotObj.label;
+            state.step = 'CAPTURE_HOUSE_ADDRESS';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `⏰ *సమయం*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)`
+                    : `⏰ *Time Slot*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Tonk Road*)`
+            };
+        }
+
+        // --- CAPTURE HOUSE ADDRESS ---
+        case 'CAPTURE_HOUSE_ADDRESS': {
+            if (rawText.trim().length < 4) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *దయచేసి పూర్తి చిరునామా నమోదు చేయండి (కనీసం 4 అక్షరాలు):*`
+                        : `❌ *Please provide a complete house/street address (e.g. Flat 302, Sunrise Apts, MG Road):*`
+                };
+            }
+
+            state.data.houseAddress = rawText.trim();
+            state.step = 'CAPTURE_LANDMARK';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `🏠 *చిరునామా*: *${state.data.houseAddress}*\n----------------------------------------\n📍 *ల్యాండ్‌మార్క్ (గుర్తు)*\n\nమా సిబ్బంది మీ ఇంటిని త్వరగా చేరుకోవడానికి సమీప ల్యాండ్‌మార్క్ నమోదు చేయండి:\n(ఉదా: *Near Metro Station* లేదా *Opp. Apollo Pharmacy*)`
+                    : `🏠 *Address*: *${state.data.houseAddress}*\n----------------------------------------\n📍 *NEARBY LANDMARK*\n\nPlease enter a nearby landmark so our staff can locate your home quickly:\n(e.g. *Opposite Apollo Pharmacy* or *Near Metro Station Gate 2*)`
+            };
+        }
+
+        // --- CAPTURE LANDMARK ---
+        case 'CAPTURE_LANDMARK': {
+            if (rawText.trim().length < 2) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *దయచేసి సమీప ల్యాండ్‌మార్క్ నమోదు చేయండి:*`
+                        : `❌ *Please enter a nearby landmark (e.g. Opp. City Hospital, Near Temple, etc.):*`
+                };
+            }
+
+            state.data.landmark = rawText.trim();
+            state.step = 'CAPTURE_PINCODE';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `📍 *ల్యాండ్‌మార్క్*: *${state.data.landmark}*\n----------------------------------------\n📮 *దశ 5/5: 6-అంకెల పిన్‌కోడ్ (PINCODE)*\n\nదయచేసి మీ ప్రాంతం యొక్క **6-అంకెల పిన్‌కోడ్** నమోదు చేయండి:\n(ఉదా: *500081* లేదా *302001*)`
+                    : `📍 *Landmark*: *${state.data.landmark}*\n----------------------------------------\n📮 *STEP 5 OF 5: 6-DIGIT POSTAL PINCODE*\n\nPlease enter your **6-digit area PINCODE**:\n(e.g. *302001* or *500081*)`
+            };
+        }
+
+        // --- CAPTURE PINCODE & REVIEW ---
+        case 'CAPTURE_PINCODE': {
+            const cleanPin = rawText.replace(/\D/g, '');
+            if (!/^[1-9][0-9]{5}$/.test(cleanPin)) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *చెల్లని పిన్‌కోడ్!* భారతీయ పోస్టల్ పిన్‌కోడ్ సరిగ్గా 6 అంకెలు ఉండాలి (ఉదా: *500081*). దయచేసి మళ్లీ నమోదు చేయండి:`
+                        : `❌ *Invalid Pincode!* Indian postal pincode must be exactly 6 digits starting with 1-9 (e.g. *302018*). Please enter again:`
+                };
+            }
+
+            state.data.pincode = cleanPin;
             const serviceBooked = state.data.selectedSubService || state.data.selectedService;
-            const patient = state.data.patientName;
-            const dt = state.data.dateTime;
-            const loc = state.data.location;
-
-            // Reset state
-            delete CONVERSATION_STATES[phoneKey];
+            const fee = extractServiceFee(serviceBooked);
+            state.data.fee = fee;
+            state.step = 'REVIEW_AND_CONFIRM';
 
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `✅ *బుకింగ్ విజయవంతంగా నిర్ధారించబడింది!*\n----------------------------------------\n🔖 *బుకింగ్ ID*: *${bookingId}*\n🩺 *సేవ*: ${serviceBooked}\n👤 *రోగి*: ${patient}\n📅 *సమయం*: ${dt}\n📍 *ప్రదేశం*: ${loc}\n\n👨‍⚕️ మా హెల్త్‌కేర్ ప్రొఫెషనల్ త్వరలో మిమ్మల్ని సంప్రదిస్తారు.\n📞 అత్యవసర సహాయం: *${HELPLINE}*\n\nఆన్‌లైన్ ఫారమ్ పూర్తి చేయడానికి: ${PATIENT_BOOKING_FORMS.te}\n----------------------------------------\n_AMPLR HEALTH – ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది._`
-                    : `✅ *BOOKING CONFIRMED SUCCESSFULLY!*\n----------------------------------------\n🔖 *Booking ID*: *${bookingId}*\n🩺 *Service*: ${serviceBooked}\n👤 *Patient*: ${patient}\n📅 *Schedule*: ${dt}\n📍 *Address*: ${loc}\n\n👨‍⚕️ Our healthcare professional is being assigned and will contact you shortly.\n📞 Official Helpline: *${HELPLINE}*\n\n🔗 Optional Detailed Form: ${PATIENT_BOOKING_FORMS.en}\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
+                    ? `📋 *AMPLR HEALTH - బుకింగ్ వివరాల సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *బుకింగ్ నిర్ధారించండి (Confirm)*\n0️⃣ ❌ *రద్దు చేయండి (Cancel)*\n\n📲 *నిర్ధారించడానికి 1 రిప్లై ఇవ్వండి*`
+                    : `📋 *AMPLR HEALTH - BOOKING REVIEW & CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *Confirm Booking Now*\n0️⃣ ❌ *Cancel Booking*\n\n📲 *Reply 1 to Confirm or 0 to Cancel*`
+            };
+        }
+
+        // --- REVIEW AND CONFIRM ---
+        case 'REVIEW_AND_CONFIRM': {
+            if (text === '1' || text.includes('confirm') || text.includes('yes') || text.includes('సరే')) {
+                const bookingId = 'AMPLR-' + Math.floor(10000 + Math.random() * 90000);
+                const serviceBooked = state.data.selectedSubService || state.data.selectedService;
+                const fullLocation = `${state.data.houseAddress}, Landmark: ${state.data.landmark}, PIN: ${state.data.pincode}`;
+
+                addBooking({
+                    id: bookingId,
+                    patientName: state.data.patientName,
+                    serviceName: serviceBooked,
+                    date: state.data.appointmentDate,
+                    slot: state.data.timeSlot,
+                    dateTime: `${state.data.appointmentDate} (${state.data.timeSlot})`,
+                    address: state.data.houseAddress,
+                    landmark: state.data.landmark,
+                    pincode: state.data.pincode,
+                    location: fullLocation,
+                    amount: state.data.fee,
+                    phone: userPhone,
+                    status: 'Pending Assignment'
+                });
+
+                const savedPatient = state.data.patientName;
+                const savedDate = state.data.appointmentDate;
+                const savedSlot = state.data.timeSlot;
+                const savedFee = state.data.fee;
+
+                // Reset state
+                delete CONVERSATION_STATES[phoneKey];
+
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `✅ *బుకింగ్ విజయవంతంగా నిర్ధారించబడింది!*\n----------------------------------------\n🔖 *బుకింగ్ ID*: *${bookingId}*\n🩺 *సేవ*: ${serviceBooked}\n💵 *రుసుము*: ₹${savedFee}\n👤 *రోగి*: ${savedPatient}\n📅 *సమయం*: ${savedDate} (${savedSlot})\n📍 *చిరునామా*: ${fullLocation}\n\n👨‍⚕️ మా హెల్త్‌కేర్ ప్రొఫెషనల్ త్వరలో మిమ్మల్ని సంప్రదిస్తారు.\n📞 అత్యవసర సహాయం: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH – ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది._`
+                        : `✅ *BOOKING CONFIRMED SUCCESSFULLY!*\n----------------------------------------\n🔖 *Booking ID*: *${bookingId}*\n🩺 *Service*: ${serviceBooked}\n💵 *Amount*: ₹${savedFee}\n👤 *Patient*: ${savedPatient}\n📅 *Schedule*: ${savedDate} (${savedSlot})\n📍 *Location*: ${fullLocation}\n\n👨‍⚕️ Our healthcare staff is being assigned and will contact you shortly.\n📞 Official 24/7 Helpline: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
+                };
+            }
+
+            if (text === '0' || text.includes('cancel')) {
+                delete CONVERSATION_STATES[phoneKey];
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *బుకింగ్ రద్దు చేయబడింది.* ప్రధాన మెనూ కోసం *0* లేదా *Hi* టైప్ చేయండి.`
+                        : `❌ *Booking Cancelled.* Reply *0* or *Hi* for Main Menu.`
+                };
+            }
+
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `దయచేసి నిర్ధారించడానికి *1* లేదా రద్దు చేయడానికి *0* రిప్లై ఇవ్వండి.`
+                    : `Please reply with *1* to Confirm Booking ✅ or *0* to Cancel ❌.`
             };
         }
 

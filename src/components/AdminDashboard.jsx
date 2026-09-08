@@ -229,13 +229,33 @@ export default function AdminDashboard() {
                                     <tr key={b.id} className="hover:bg-slate-50 transition">
                                         <td className="p-3.5 font-mono font-bold text-teal-700 text-sm">{b.id}</td>
                                         <td className="p-3.5">
-                                            <div className="font-bold text-slate-900 text-sm">{b.serviceName}</div>
-                                            <div className="text-xs text-slate-600 font-medium">{b.patientName} • <span className="font-mono text-slate-500">{b.phone}</span></div>
-                                            <div className="text-[11px] text-slate-400 font-mono">Location Pincode: {b.pincode}</div>
+                                            <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                                <span>{b.serviceName}</span>
+                                                {b.amount && (
+                                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                                                        ₹{b.amount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-slate-600 font-medium mt-0.5">
+                                                👤 {b.patientName} • <span className="font-mono text-slate-500">{b.phone}</span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5 flex flex-wrap items-center gap-1">
+                                                <span>🏠 {b.address || b.location || 'Address not specified'}</span>
+                                                {b.landmark && <span className="text-slate-400">({b.landmark})</span>}
+                                            </div>
+                                            <div className="text-[11px] text-teal-700 font-mono font-semibold mt-0.5">
+                                                📮 PIN: {b.pincode || 'N/A'}
+                                            </div>
                                         </td>
                                         <td className="p-3.5 text-xs">
-                                            <div className="font-semibold text-slate-800">{b.date}</div>
-                                            <div className="text-teal-600 font-mono font-bold">{b.slot}</div>
+                                            <div className="font-bold text-slate-800 flex items-center gap-1">
+                                                <span>📅</span>
+                                                <span>{b.date || (b.dateTime ? b.dateTime.split('(')[0].trim() : 'Scheduled')}</span>
+                                            </div>
+                                            <div className="text-teal-600 font-mono font-bold mt-1 bg-teal-50 px-2 py-0.5 rounded-md inline-block border border-teal-200">
+                                                ⏰ {b.slot || (b.dateTime && b.dateTime.includes('(') ? b.dateTime.split('(')[1].replace(')', '').trim() : 'IST Slot')}
+                                            </div>
                                         </td>
                                         <td className="p-3.5 text-xs">
                                             {b.assignedStaff ? (
