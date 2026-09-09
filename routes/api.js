@@ -1,135 +1,184 @@
 import express from 'express';
-import axios from 'axios';
-import { getBookings, updateBookingStatus, STAFF_POOL, EMERGENCY_ALERTS, SERVICES, getLiveMessages, addLiveWhatsAppMessage, CONVERSATION_STATES } from '../data/mockDatabase.js';
+import { 
+    getServicesFromDB, 
+    updateServiceInDB, 
+    addServiceToDB, 
+    deleteServiceFromDB,
+    getStaffFromDB,
+    getInquiriesFromDB,
+    getBookingsFromDB,
+    addBookingToDB,
+    updateBookingInDB,
+    getDashboardStatsFromDB
+} from '../services/supabaseService.js';
 import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { generateBookingPDF } from '../services/pdfGenerator.js';
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
+import { CONVERSATION_STATES } from '../data/mockDatabase.js';
 
 const router = express.Router();
-const RENDER_LIVE_URL = process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com';
 
-// Helper to check if running in Render environment
-const isRender = !!process.env.RENDER;
-
-// Get all bookings (always fetch live from Render if running locally)
+// ── BOOKINGS PIPELINE ────────────────────────────────────────────────────────
 router.get('/bookings', async (req, res) => {
-    let localBookings = getBookings();
-    if (!isRender) {
-        try {
-            const remoteRes = await axios.get(`${RENDER_LIVE_URL}/api/bookings`, { timeout: 4000 });
-            if (remoteRes.data && Array.isArray(remoteRes.data.bookings)) {
-                // Combine remote live bookings with local bookings (deduplicating by ID)
-                const map = new Map();
-                remoteRes.data.bookings.forEach(b => map.set(b.id, b));
-                localBookings.forEach(b => map.set(b.id, b));
-                return res.json({ bookings: Array.from(map.values()) });
-            }
-        } catch (e) {
-            console.error('[Live Sync Bookings Error]:', e.message);
-        }
+    try {
+        const bookings = await getBookingsFromDB();
+        res.json({ bookings });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json({ bookings: localBookings });
 });
 
-// Get live WhatsApp message feed (always fetch live from Render if running locally)
-router.get('/messages', async (req, res) => {
-    let localMessages = getLiveMessages();
-    if (!isRender) {
-        try {
-            const remoteRes = await axios.get(`${RENDER_LIVE_URL}/api/messages`, { timeout: 4000 });
-            if (remoteRes.data && Array.isArray(remoteRes.data.messages)) {
-                // Combine remote live messages with local messages (deduplicating by ID)
-                const map = new Map();
-                remoteRes.data.messages.forEach(m => map.set(m.id, m));
-                localMessages.forEach(m => map.set(m.id, m));
-                return res.json({ messages: Array.from(map.values()) });
-            }
-        } catch (e) {
-            console.error('[Live Sync Messages Error]:', e.message);
-        }
-    }
-    res.json({ messages: localMessages });
-});
-
-// Update booking status / staff
 router.put('/bookings/:id', async (req, res) => {
     const { id } = req.params;
     const { status, staffId } = req.body;
-    const updated = updateBookingStatus(id, status, staffId);
+    try {
+        const updated = await updateBookingInDB(id, status, staffId);
+        if (updated) {
+            const patientPhone = updated.patientPhone || updated.phone;
 
-    if (!isRender) {
-        try {
-            await axios.put(`${RENDER_LIVE_URL}/api/bookings/${id}`, { status, staffId }, { timeout: 4000 });
-        } catch (e) {}
-    }
-
-    if (updated) {
-        return res.json({ success: true, booking: updated });
-    }
-    return res.status(404).json({ error: 'Booking not found' });
-});
-
-// Get staff pool
-router.get('/staff', (req, res) => {
-    res.json({ staff: STAFF_POOL });
-});
-
-// Get services list
-router.get('/services', (req, res) => {
-    res.json({ services: SERVICES });
-});
-
-// Get emergency alerts (always fetch live from Render if running locally)
-router.get('/emergency', async (req, res) => {
-    let localAlerts = EMERGENCY_ALERTS;
-    if (!isRender) {
-        try {
-            const remoteRes = await axios.get(`${RENDER_LIVE_URL}/api/emergency`, { timeout: 4000 });
-            if (remoteRes.data && Array.isArray(remoteRes.data.alerts)) {
-                const map = new Map();
-                remoteRes.data.alerts.forEach(a => map.set(a.id, a));
-                localAlerts.forEach(a => map.set(a.id, a));
-                return res.json({ alerts: Array.from(map.values()) });
+            // 1. Staff Assigned Alert (Sheet 3)
+            if (staffId && updated.assignedStaff && patientPhone) {
+                const staffAlert = `🏥 *AMPLR HEALTH - Specialist Assigned!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour healthcare specialist has been successfully allocated:\n\n👤 *Specialist*: *${updated.assignedStaff.name}*\n📞 *Direct Phone*: *${updated.assignedStaff.phone}*\n🩺 *Service*: ${updated.serviceName}\n📅 *Appointment*: ${updated.date} (${updated.slot})\n\nOur team member will contact you shortly and arrive at your scheduled time. For queries, call our 24/7 Helpline: *7997888448*.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
+                sendWhatsAppMessage(patientPhone, staffAlert).catch(e => console.warn('[Staff Alert Error]:', e.message));
             }
-        } catch (e) {}
+
+            // 2. Post-Service Feedback Loop Trigger (Docx)
+            if (status === 'Completed' && patientPhone) {
+                const staffName = updated.assignedStaff ? updated.assignedStaff.name : 'our specialist';
+                const feedbackPrompt = `🏥 *AMPLR HEALTH - Service Completed* ✅\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour appointment for *${updated.serviceName}* has been completed!\n\nHow was your experience with *${staffName}* today?\n\n1️⃣ 😊 *Happy* – Great service, highly satisfied!\n2️⃣ 🙁 *Unhappy* – Need improvement / feedback\n\n----------------------------------------\n📲 *Reply with 1 or 2 to share your feedback.*`;
+                sendWhatsAppMessage(patientPhone, feedbackPrompt).catch(e => console.warn('[Feedback Prompt Error]:', e.message));
+
+                const cleanPhone = (patientPhone || '').toString().replace(/\D/g, '');
+                CONVERSATION_STATES[cleanPhone] = {
+                    step: 'POST_SERVICE_FEEDBACK',
+                    bookingId: id,
+                    patientName: updated.patientName,
+                    staffName: staffName
+                };
+            }
+
+            return res.json({ success: true, booking: updated });
+        }
+        return res.status(404).json({ error: 'Booking not found' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json({ alerts: localAlerts });
 });
 
-// Get Dashboard KPI Metrics (always fetch live from Render if running locally)
+// ── INQUIRIES & LIVE MESSAGES ────────────────────────────────────────────────
+router.get('/messages', async (req, res) => {
+    try {
+        const inquiries = await getInquiriesFromDB();
+        const formatted = inquiries.map(inq => ({
+            id: inq.id,
+            phone: inq.phone,
+            senderName: inq.sender_name,
+            userMessage: inq.user_message,
+            botReplyText: inq.bot_reply_text,
+            timestamp: new Date(inq.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: inq.status || 'Auto Replied'
+        }));
+        res.json({ messages: formatted });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── STAFF DIRECTORY ──────────────────────────────────────────────────────────
+router.get('/staff', async (req, res) => {
+    try {
+        const staff = await getStaffFromDB();
+        res.json({ staff });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── SERVICES & PRICING TARIFF ────────────────────────────────────────────────
+router.get('/services', async (req, res) => {
+    try {
+        const services = await getServicesFromDB();
+        res.json({ services });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/services/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const updated = await updateServiceInDB(id, req.body);
+        if (updated) {
+            return res.json({ success: true, service: updated });
+        }
+        return res.status(404).json({ error: 'Service not found' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/services', async (req, res) => {
+    try {
+        const created = await addServiceToDB(req.body);
+        if (created) {
+            return res.status(201).json({ success: true, service: created });
+        }
+        return res.status(400).json({ error: 'Failed to create service' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/services/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deleted = await deleteServiceFromDB(id);
+        if (deleted) {
+            return res.json({ success: true, service: deleted });
+        }
+        return res.status(404).json({ error: 'Service not found' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── EMERGENCY ESCALATIONS ────────────────────────────────────────────────────
+router.get('/emergency', (req, res) => {
+    res.json({ alerts: [] });
+});
+
+// ── DASHBOARD KPI METRICS (Clean Live Supabase Data) ─────────────────────────
 router.get('/stats', async (req, res) => {
-    let localMessages = getLiveMessages();
-    let localBookings = getBookings();
-
-    if (!isRender) {
-        try {
-            const remoteRes = await axios.get(`${RENDER_LIVE_URL}/api/stats`, { timeout: 4000 });
-            if (remoteRes.data && remoteRes.data.stats) {
-                return res.json({ stats: remoteRes.data.stats });
+    try {
+        const stats = await getDashboardStatsFromDB();
+        res.json({ stats });
+    } catch (err) {
+        res.status(500).json({ 
+            stats: {
+                totalEnquiries: 0,
+                todaysBookings: 0,
+                pendingAssignment: 0,
+                assigned: 0,
+                onTheWay: 0,
+                completed: 0,
+                totalRevenue: 0,
+                emergencyAlertsCount: 0
             }
-        } catch (e) {}
+        });
     }
-
-    const stats = {
-        totalEnquiries: localMessages.length,
-        todaysBookings: localBookings.length,
-        pendingAssignment: localBookings.filter(b => b.status === 'Pending Assignment').length,
-        assigned: localBookings.filter(b => b.status === 'Assigned').length,
-        onTheWay: localBookings.filter(b => b.status === 'On the way').length,
-        completed: localBookings.filter(b => b.status === 'Completed').length,
-        totalRevenue: localBookings.reduce((sum, b) => sum + (b.amount || 0), 0),
-        emergencyAlertsCount: EMERGENCY_ALERTS.length
-    };
-    res.json({ stats });
 });
 
-// Download PDF Invoice / Receipt
+// ── DOWNLOAD PDF INVOICE / RECEIPT ──────────────────────────────────────────
 router.get('/bookings/:id/invoice', async (req, res) => {
     const { id } = req.params;
-    const bookings = getBookings();
-    const booking = bookings.find(b => b.id === id) || bookings[0];
-
     try {
+        const bookings = await getBookingsFromDB();
+        const booking = bookings.find(b => b.id === id) || bookings[0];
+
+        if (!booking) {
+            return res.status(404).json({ error: 'No booking found to generate invoice' });
+        }
+
         const pdfBuffer = await generateBookingPDF(booking);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="Invoice_${booking.id}.pdf"`);
@@ -139,99 +188,23 @@ router.get('/bookings/:id/invoice', async (req, res) => {
     }
 });
 
-// Simulated WhatsApp Chat trigger for testing from dashboard
+// ── SIMULATED WHATSAPP CHAT TRIGGER ──────────────────────────────────────────
 router.post('/simulate-chat', async (req, res) => {
     const { phone, message, payload } = req.body;
-    const userPhone = phone || '918233816674';
-
-    const botReply = processHealthcareMessage(userPhone, message, payload);
-    const newMsg = addLiveWhatsAppMessage(userPhone, message, botReply.text, 'Patient (Test)');
-
-    if (!isRender) {
-        try {
-            await axios.post(`${RENDER_LIVE_URL}/api/simulate-chat`, {
-                phone: userPhone,
-                message,
-                payload
-            }, { timeout: 4000 });
-        } catch (e) {}
-    }
-
-    res.json({
-        success: true,
-        userMessage: message,
-        botReply
-    });
-});
-
-// Get current slot booking info for webview
-router.get('/slot-info', (req, res) => {
-    let phone = (req.query.phone || '').toString().replace(/\D/g, '');
-    if (phone.length === 10) phone = '91' + phone;
-    const state = CONVERSATION_STATES[phone];
-
-    if (!state || !state.data) {
-        return res.json({
-            patientName: 'Valued Patient',
-            serviceName: 'Healthcare Service',
-            fee: 800
-        });
-    }
-
-    const serviceName = state.data.selectedSubService || state.data.selectedService || 'Home Healthcare Service';
-    res.json({
-        patientName: state.data.patientName || 'Patient',
-        serviceName: serviceName,
-        fee: state.data.fee || 800,
-        lang: state.lang || 'en'
-    });
-});
-
-// Confirm appointment slot from Interactive Calendar & Clock Webview
-router.post('/confirm-slot', async (req, res) => {
-    let { phone, date, timeSlot } = req.body;
-    let cleanPhone = (phone || '').toString().replace(/\D/g, '');
-    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-
-    if (!cleanPhone || !date || !timeSlot) {
-        return res.status(400).json({ error: 'Missing phone, date, or timeSlot' });
-    }
-
-    if (!CONVERSATION_STATES[cleanPhone]) {
-        CONVERSATION_STATES[cleanPhone] = { step: 'CAPTURE_HOUSE_ADDRESS', lang: 'en', data: {} };
-    }
-
-    const state = CONVERSATION_STATES[cleanPhone];
-    state.data.appointmentDate = date;
-    state.data.timeSlot = timeSlot;
-    state.data.timeSlotLabel = timeSlot;
-    state.step = 'CAPTURE_HOUSE_ADDRESS';
-
-    // Outbound WhatsApp confirmation message
-    const isTelugu = state.lang === 'te';
-    const whatsappText = isTelugu
-        ? `✅ *క్యాలెండర్ ద్వారా స్లాట్ నిర్ధారించబడింది!*\n----------------------------------------\n📅 *తేదీ*: *${date}*\n⏰ *సమయం*: *${timeSlot} (IST)*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)`
-        : `✅ *APPOINTMENT SLOT CONFIRMED VIA CALENDAR!*\n----------------------------------------\n📅 *Date*: *${date}*\n⏰ *Time*: *${timeSlot} (IST)*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Tonk Road*)`;
-
-    // Also sync to Render if local
-    if (!isRender) {
-        try {
-            await axios.post(`${RENDER_LIVE_URL}/api/confirm-slot`, { phone: cleanPhone, date, timeSlot }, { timeout: 4000 });
-        } catch (e) {}
-    }
+    const testPhone = phone || '919876543210';
+    const testMessage = message || 'Hi';
 
     try {
-        await sendWhatsAppMessage(cleanPhone, { type: 'TEXT', text: whatsappText });
-    } catch (e) {
-        console.error('[Confirm Slot WhatsApp Notification Error]:', e.message);
+        const botResponse = processHealthcareMessage(testPhone, testMessage, payload);
+        res.json({
+            success: true,
+            userMessage: testMessage,
+            botReply: botResponse,
+            state: CONVERSATION_STATES[testPhone] || null
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Simulation failed', details: err.message });
     }
-
-    res.json({
-        success: true,
-        date,
-        timeSlot,
-        nextStep: 'CAPTURE_HOUSE_ADDRESS'
-    });
 });
 
 export default router;

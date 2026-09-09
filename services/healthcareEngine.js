@@ -1,10 +1,11 @@
-import { SERVICES, addBooking, getBookings, addEmergencyAlert, CONVERSATION_STATES } from '../data/mockDatabase.js';
+import { SERVICES, addBooking, getBookings, updateBookingStatus, addEmergencyAlert, CONVERSATION_STATES } from '../data/mockDatabase.js';
 
 /**
  * ============================================================================
  * AMPLR HEALTH - Master Healthcare Chatbot Engine
  * Slogan: "Brings Hospital Care to Your Home"
  * Helpline: 7997888448
+ * Full End-to-End Bilingual Engine (English & Telugu)
  * ============================================================================
  */
 
@@ -19,11 +20,6 @@ const PARTNER_FORMS = {
     '6': { name: 'Ambulance Partner', url: 'https://forms.gle/bScLWDSmhg6RDQwh6' },
     '7': { name: 'Doctor Consultation', url: 'https://forms.gle/pob6vRt5reBS7YMq5' },
     '8': { name: 'Hospital / Clinic Partnership', url: 'https://forms.gle/iUWhwpiWwyGA176Q6' }
-};
-
-const PATIENT_BOOKING_FORMS = {
-    en: 'https://forms.gle/TDUEAVf9bdyAgUrW6',
-    te: 'https://forms.gle/ndEuC7ToumgiiTy59'
 };
 
 const EMERGENCY_KEYWORDS = [
@@ -56,13 +52,23 @@ export function extractServiceFee(serviceStr) {
     if (match) {
         return parseInt(match[1].replace(/,/g, ''), 10);
     }
+    const lower = serviceStr.toLowerCase();
+    const matchedService = SERVICES.find(s => 
+        lower.includes(s.name.toLowerCase()) || 
+        (s.code && lower.includes(s.code.toLowerCase())) ||
+        (s.category && lower.includes(s.category.toLowerCase()))
+    );
+    if (matchedService && matchedService.basePrice !== undefined) {
+        return matchedService.basePrice;
+    }
+    if (serviceStr.includes('Medicine') || serviceStr.includes('Pharmacy')) return 0;
     if (serviceStr.includes('Lab')) return 500;
     if (serviceStr.includes('Physio')) return 900;
     if (serviceStr.includes('ECG')) return 1100;
     if (serviceStr.includes('Caregiver') || serviceStr.includes('Caretaker')) return 1200;
-    if (serviceStr.includes('Ambulance')) return 1500;
+    if (serviceStr.includes('Ambulance')) return 1400;
     if (serviceStr.includes('Doctor')) return 499;
-    return 700;
+    return 800;
 }
 
 export function processHealthcareMessage(userPhone, messageText, payloadData = null) {
@@ -73,7 +79,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     const rawText = (messageText || '').trim();
     const text = rawText.toLowerCase();
 
-    // 1. Emergency Clinical Notice
+    // ── 1. EMERGENCY ESCALATION ──────────────────────────────────────────────
     const isEmergency = EMERGENCY_KEYWORDS.some(kw => text.includes(kw));
     if (isEmergency) {
         addEmergencyAlert({ phone: userPhone, triggerKeyword: text });
@@ -83,16 +89,51 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
         };
     }
 
-    // 2. Partner Flow Trigger Check
-    const PARTNER_KEYWORDS = ['partner', 'partnership', 'join', 'become a partner', 'భాగస్వామ్యం', 'doctor join', 'nurse join'];
-    const isPartnerTrigger = PARTNER_KEYWORDS.some(kw => text === kw || text.includes(kw));
+    // ── 2. POST-SERVICE FEEDBACK (Happy / Unhappy Survey Response) ────────────
+    const currentState = CONVERSATION_STATES[phoneKey];
+    if (currentState && currentState.step === 'POST_SERVICE_FEEDBACK') {
+        if (text === '1' || text.includes('happy') || text.includes('good') || text.includes('బాగుంది') || text.includes('yes')) {
+            delete CONVERSATION_STATES[phoneKey];
+            return {
+                type: 'TEXT',
+                text: `🌟 *Thank You For Your 5-Star Feedback!* 😊\n----------------------------------------\nWe are delighted that you had a wonderful healthcare experience with AMPLR HEALTH.\n\n🎁 *Referral Reward*:\nShare AMPLR Health with friends and family — they get *₹100 OFF* on their first home visit!\n\nTo book another healthcare appointment anytime, simply reply *Hi*.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
+            };
+        } else if (text === '2' || text.includes('unhappy') || text.includes('bad') || text.includes('బాగాలేదు') || text.includes('no')) {
+            addEmergencyAlert({ phone: userPhone, triggerKeyword: 'UNHAPPY_FEEDBACK_ESCALATION' });
+            delete CONVERSATION_STATES[phoneKey];
+            return {
+                type: 'TEXT',
+                text: `😔 *We Sincerely Apologize For Your Experience.*\n----------------------------------------\nPatient care and safety are our highest priorities at AMPLR HEALTH.\n\n🚨 Your feedback has been escalated with **High Priority** to our Clinical Operations Lead. Our care supervisor will call you within 15 minutes.\n\n📞 Direct Support Line: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
+            };
+        }
+    }
 
-    if (isPartnerTrigger) {
+    // ── 3. GLOBAL STATUS CHECK KEYWORD TRIGGER ────────────────────────────────
+    const STATUS_KEYWORDS = ['status', 'my booking', 'booking status', 'check status', 'appointment', 'స్టేటస్', 'నా బుకింగ్'];
+    if (STATUS_KEYWORDS.some(kw => text === kw || text.includes(kw))) {
+        return handleBookingStatus(phoneKey, currentState?.lang === 'te');
+    }
+
+    // ── 4. GLOBAL CANCEL KEYWORD TRIGGER ─────────────────────────────────────
+    const CANCEL_KEYWORDS = ['cancel booking', 'రద్దు చేయండి', 'రద్దు'];
+    if (CANCEL_KEYWORDS.some(kw => text === kw || text.includes(kw)) || text === 'cancel') {
+        return handleCancelBooking(phoneKey, currentState?.lang === 'te');
+    }
+
+    // ── 5. GLOBAL REPEAT / BOOK AGAIN KEYWORD TRIGGER ─────────────────────────
+    const REPEAT_KEYWORDS = ['repeat', 'book again', 'rebook', 'మళ్లీ బుక్', 'రీపీట్'];
+    if (REPEAT_KEYWORDS.some(kw => text === kw || text.includes(kw))) {
+        return handleRepeatBooking(phoneKey, currentState?.lang === 'te');
+    }
+
+    // ── 6. PARTNER ONBOARDING FLOW TRIGGER ───────────────────────────────────
+    const PARTNER_KEYWORDS = ['partner', 'partnership', 'join', 'become a partner', 'భాగస్వామ్యం', 'doctor join', 'nurse join'];
+    if (PARTNER_KEYWORDS.some(kw => text === kw || text.includes(kw))) {
         CONVERSATION_STATES[phoneKey] = { step: 'PARTNER_SELECT_PROFESSION', lang: 'en', data: {} };
         return getPartnerProfessionMenu();
     }
 
-    // 3. Customer Start / Reset Check
+    // ── 7. GREETING & CONVERSATION INITIALIZATION ─────────────────────────────
     const GREETINGS = ['hi', 'hii', 'hiii', 'hello', 'namaste', 'start', 'menu', 'restart', '0', 'నమస్తే', 'నమస్కారం'];
     const isGreeting = GREETINGS.some(g => text === g || text.startsWith(g + ' ') || text.startsWith(g + '!'));
 
@@ -104,7 +145,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     const state = CONVERSATION_STATES[phoneKey];
     const isTelugu = state.lang === 'te';
 
-    // 4. Conversation State Machine
+    // ── 8. CONVERSATION STATE MACHINE ─────────────────────────────────────────
     switch (state.step) {
 
         // --- STEP 1: LANGUAGE SELECTION ---
@@ -137,8 +178,16 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 state.step = 'SELECT_PRICING_CATEGORY';
                 return isTelugu ? getPricingMenuTelugu() : getPricingMenuEnglish();
             }
-            // Option 3: Contact Us
-            else if (text === '3' || text.includes('contact') || text.includes('support') || text.includes('సంప్రదించండి')) {
+            // Option 3: Check Booking Status / Cancel
+            else if (text === '3' || text.includes('status') || text.includes('స్టేటస్')) {
+                return handleBookingStatus(phoneKey, isTelugu);
+            }
+            // Option 4: Repeat Last Booking
+            else if (text === '4' || text.includes('repeat') || text.includes('మళ్లీ')) {
+                return handleRepeatBooking(phoneKey, isTelugu);
+            }
+            // Option 5: Contact Us & Support
+            else if (text === '5' || text.includes('contact') || text.includes('support') || text.includes('సంప్రదించండి')) {
                 return {
                     type: 'TEXT',
                     text: isTelugu
@@ -146,8 +195,8 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                         : `🏥 *AMPLR HEALTH - Contact Us & Support*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n📞 **Official Helpline**: *${HELPLINE}*\n⏰ **Service Hours**: 24/7 Available\n\n💬 For immediate booking assistance or queries, feel free to call our support team.\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
                 };
             }
-            // Option 4: Become a Partner
-            else if (text === '4' || text.includes('partner') || text.includes('భాగస్వామ్యం')) {
+            // Option 6: Become a Partner
+            else if (text === '6' || text.includes('partner') || text.includes('భాగస్వామ్యం')) {
                 state.step = 'PARTNER_SELECT_PROFESSION';
                 return getPartnerProfessionMenu();
             } else {
@@ -170,13 +219,14 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 '5': 'ECG at Home',
                 '6': 'Doctor Consultation',
                 '7': 'Ambulance Services',
-                '8': 'Hospital / Clinic Referral'
+                '8': 'Hospital / Clinic Referral',
+                '9': 'Medicine Delivery at Home'
             };
 
             if (serviceNames[text]) {
                 state.data.selectedService = serviceNames[text];
 
-                // If Doctor, Nursing, or Ambulance, show their specific rate options
+                // Specialty sub-menus
                 if (text === '6') {
                     state.step = 'SELECT_DOCTOR_SPECIALTY';
                     return getDoctorSpecialtiesMenu(isTelugu);
@@ -186,6 +236,14 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 } else if (text === '7') {
                     state.step = 'SELECT_AMBULANCE_TYPE';
                     return getAmbulanceMenu(isTelugu);
+                } else if (text === '9') {
+                    state.step = 'CAPTURE_MEDICINE_LIST';
+                    return {
+                        type: 'TEXT',
+                        text: isTelugu
+                            ? `💊 *మందుల పంపిణీ (ఇంటి వద్ద)*\n----------------------------------------\n📝 *దశ 1/4: మందుల వివరాలు*\n\nదయచేసి అవసరమైన మందుల పేర్లను టైప్ చేయండి లేదా డాక్టర్ ప్రిస్క్రిప్షన్ వివరాలు పంపండి:`
+                            : `💊 *Medicine Delivery at Home*\n----------------------------------------\n📝 *STEP 1 OF 4: MEDICINE DETAILS*\n\nPlease type the names of the required medicines or doctor's prescription details:`
+                    };
                 }
 
                 state.step = 'CAPTURE_PATIENT_NAME';
@@ -200,8 +258,29 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `❌ దయచేసి సరైన సంఖ్యను (1 నుండి 8) ఎంచుకోండి, లేదా ప్రధాన మెనూ కోసం *0* టైప్ చేయండి.`
-                    : `❌ Please reply with a valid service number (*1 to 8*), or *0* for Main Menu.`
+                    ? `❌ దయచేసి సరైన సంఖ్యను (1 నుండి 9) ఎంచుకోండి, లేదా ప్రధాన మెనూ కోసం *0* టైప్ చేయండి.`
+                    : `❌ Please reply with a valid service number (*1 to 9*), or *0* for Main Menu.`
+            };
+        }
+
+        // --- MEDICINE LIST CAPTURE ---
+        case 'CAPTURE_MEDICINE_LIST': {
+            if (rawText.trim().length < 2) {
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ దయచేసి మందుల వివరాలను నమోదు చేయండి:`
+                        : `❌ Please provide your required medicine names or prescription:`
+                };
+            }
+            state.data.medicineDetails = rawText.trim();
+            state.data.selectedSubService = `Medicine Delivery: ${rawText.trim().slice(0, 40)}`;
+            state.step = 'CAPTURE_PATIENT_NAME';
+            return {
+                type: 'TEXT',
+                text: isTelugu
+                    ? `👤 *దశ 2/4: రోగి పేరు మరియు వయస్సు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి:`
+                    : `👤 *STEP 2 OF 4: PATIENT DETAILS*\n\nPlease enter the Patient Name and Age:`
             };
         }
 
@@ -295,14 +374,12 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             state.data.patientName = rawText.trim();
             state.step = 'SELECT_APPOINTMENT_DATE';
             const serviceBooked = state.data.selectedSubService || state.data.selectedService || 'Healthcare Service';
-            const BASE_URL = (process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com').replace(/\/$/, '');
-            const slotPickerUrl = `${BASE_URL}/select-slot?phone=${cleanUserPhone}`;
 
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `👤 *రోగి*: *${state.data.patientName}*\n🩺 *సేవ*: *${serviceBooked}*\n----------------------------------------\n📅 *దశ 2 & 3: ఇంటరాక్టివ్ క్యాలెండర్ & గడియారం*\n\n👉 *తేదీ మరియు సమయం ఎంచుకోవడానికి క్రింది లింక్ క్లిక్ చేయండి:*\n🔗 ${slotPickerUrl}\n\n_గూగుల్-స్టైల్ క్యాలెండర్ మరియు ఇండియన్ స్టాండర్డ్ టైమ్ (IST) క్లాక్ తెరవబడుతుంది._\n----------------------------------------\n_(లేదా ఇక్కడ రిప్లై ఇవ్వండి: 1 for ఈరోజు, 2 for రేపు)_`
-                    : `👤 *Patient*: *${state.data.patientName}*\n🩺 *Service*: *${serviceBooked}*\n----------------------------------------\n📅 *STEP 2 & 3: INTERACTIVE CALENDAR & CLOCK*\n\n👉 *Tap below to open Visual Google Calendar & IST Clock:*\n🔗 ${slotPickerUrl}\n\n_Select your appointment date on the visual calendar grid and convenient Indian Standard Time slot._\n----------------------------------------\n_(Or reply directly: 1 for Today, 2 for Tomorrow)_`
+                    ? `👤 *రోగి*: *${state.data.patientName}*\n🩺 *సేవ*: *${serviceBooked}*\n----------------------------------------\n📅 *దశ 2/5: అపాయింట్‌మెంట్ తేదీ*\n\n1️⃣ ఈరోజు (${getISTDateString(0)})\n2️⃣ రేపు (${getISTDateString(1)})\n3️⃣ ఎల్లుండి (${getISTDateString(2)})\n----------------------------------------\n📲 *తేదీ ఎంపిక కోసం 1, 2, లేదా 3 రిప్లై ఇవ్వండి (లేదా DD/MM/YYYY)*`
+                    : `👤 *Patient*: *${state.data.patientName}*\n🩺 *Service*: *${serviceBooked}*\n----------------------------------------\n📅 *STEP 2 OF 5: APPOINTMENT DATE*\n\n1️⃣ Today (${getISTDateString(0)})\n2️⃣ Tomorrow (${getISTDateString(1)})\n3️⃣ Day After Tomorrow (${getISTDateString(2)})\n----------------------------------------\n📲 *Reply 1, 2, or 3, or enter DD/MM/YYYY*`
             };
         }
 
@@ -358,12 +435,28 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
             state.data.timeSlot = slotObj.short;
             state.data.timeSlotLabel = isTelugu ? slotObj.te : slotObj.label;
+
+            // If coming from REPEAT BOOKING flow, skip address capture and jump to review!
+            if (state.isRepeatBooking) {
+                const serviceBooked = state.data.selectedSubService || state.data.selectedService;
+                const fee = extractServiceFee(serviceBooked);
+                state.data.fee = fee;
+                state.step = 'REVIEW_AND_CONFIRM';
+
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `📋 *AMPLR HEALTH - రిపీట్ బుకింగ్ సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *బుకింగ్ నిర్ధారించండి (Confirm)*\n0️⃣ ❌ *రద్దు చేయండి (Cancel)*\n\n📲 *నిర్ధారించడానికి 1 రిప్లై ఇవ్వండి*`
+                        : `📋 *AMPLR HEALTH - REPEAT BOOKING CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *Confirm Re-Booking Now*\n0️⃣ ❌ *Cancel*\n\n📲 *Reply 1 to Confirm or 0 to Cancel*`
+                };
+            }
+
             state.step = 'CAPTURE_HOUSE_ADDRESS';
             return {
                 type: 'TEXT',
                 text: isTelugu
                     ? `⏰ *సమయం*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)`
-                    : `⏰ *Time Slot*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Tonk Road*)`
+                    : `⏰ *Time Slot*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Jubilee Hills*)`
             };
         }
 
@@ -405,7 +498,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 type: 'TEXT',
                 text: isTelugu
                     ? `📍 *ల్యాండ్‌మార్క్*: *${state.data.landmark}*\n----------------------------------------\n📮 *దశ 5/5: 6-అంకెల పిన్‌కోడ్ (PINCODE)*\n\nదయచేసి మీ ప్రాంతం యొక్క **6-అంకెల పిన్‌కోడ్** నమోదు చేయండి:\n(ఉదా: *500081* లేదా *302001*)`
-                    : `📍 *Landmark*: *${state.data.landmark}*\n----------------------------------------\n📮 *STEP 5 OF 5: 6-DIGIT POSTAL PINCODE*\n\nPlease enter your **6-digit area PINCODE**:\n(e.g. *302001* or *500081*)`
+                    : `📍 *Landmark*: *${state.data.landmark}*\n----------------------------------------\n📮 *STEP 5 OF 5: 6-DIGIT POSTAL PINCODE*\n\nPlease enter your **6-digit area PINCODE**:\n(e.g. *500081* or *302001*)`
             };
         }
 
@@ -417,7 +510,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                     type: 'TEXT',
                     text: isTelugu
                         ? `❌ *చెల్లని పిన్‌కోడ్!* భారతీయ పోస్టల్ పిన్‌కోడ్ సరిగ్గా 6 అంకెలు ఉండాలి (ఉదా: *500081*). దయచేసి మళ్లీ నమోదు చేయండి:`
-                        : `❌ *Invalid Pincode!* Indian postal pincode must be exactly 6 digits starting with 1-9 (e.g. *302018*). Please enter again:`
+                        : `❌ *Invalid Pincode!* Indian postal pincode must be exactly 6 digits starting with 1-9 (e.g. *500081*). Please enter again:`
                 };
             }
 
@@ -463,7 +556,6 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 const savedSlot = state.data.timeSlot;
                 const savedFee = state.data.fee;
 
-                // Reset state
                 delete CONVERSATION_STATES[phoneKey];
 
                 return {
@@ -489,6 +581,35 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 text: isTelugu
                     ? `దయచేసి నిర్ధారించడానికి *1* లేదా రద్దు చేయడానికి *0* రిప్లై ఇవ్వండి.`
                     : `Please reply with *1* to Confirm Booking ✅ or *0* to Cancel ❌.`
+            };
+        }
+
+        // --- CONFIRM CANCEL BOOKING ---
+        case 'CONFIRM_CANCEL_BOOKING': {
+            if (text === '1' || text.includes('yes') || text.includes('అవును')) {
+                const cancelId = state.cancelBookingId;
+                if (cancelId) {
+                    updateBookingStatus(cancelId, 'Cancelled');
+                }
+                delete CONVERSATION_STATES[phoneKey];
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `❌ *బుకింగ్ విజయవంతంగా రద్దు చేయబడింది.*\n----------------------------------------\nమీ అపాయింట్‌మెంట్ *${cancelId || ''}* రద్దు చేయబడింది.\n\nఏవైనా సహాయం కావాలంటే మా 24/7 హెల్ప్‌లైన్ కు కాల్ చేయండి: *${HELPLINE}*.\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *Hi* లేదా *0* రిప్లై ఇవ్వండి.`
+                        : `❌ *BOOKING CANCELLED SUCCESSFULLY*\n----------------------------------------\nYour booking *${cancelId || ''}* has been cancelled.\n\nNeed assistance or want to reschedule? Call our 24/7 Helpline: *${HELPLINE}*.\n----------------------------------------\n↩️ Reply *Hi* or *0* for Main Menu.`
+                };
+            } else if (text === '2' || text.includes('no') || text.includes('వద్దు')) {
+                delete CONVERSATION_STATES[phoneKey];
+                return {
+                    type: 'TEXT',
+                    text: isTelugu
+                        ? `✅ *మీ బుకింగ్ సక్రియంగా ఉంచబడింది!*\nప్రధాన మెనూ కోసం *0* లేదా *Hi* రిప్లై ఇవ్వండి.`
+                        : `✅ *Booking Kept Active!*\nYour appointment remains confirmed. Reply *0* or *Hi* for Main Menu.`
+                };
+            }
+            return {
+                type: 'TEXT',
+                text: `Reply *1* to Confirm Cancellation, or *2* to Keep Appointment.`
             };
         }
 
@@ -526,7 +647,112 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     }
 }
 
-// --- HELPER TEMPLATES ---
+// ── STATUS CHECK HANDLER ─────────────────────────────────────────────────────
+function handleBookingStatus(phoneKey, isTelugu) {
+    const bookings = getBookings();
+    const clean = (phoneKey || '').replace(/\D/g, '');
+    const myBooking = bookings.find(b => {
+        const p = (b.phone || b.patientPhone || '').replace(/\D/g, '');
+        return p && (clean.includes(p) || p.includes(clean));
+    });
+
+    if (!myBooking) {
+        return {
+            type: 'TEXT',
+            text: isTelugu
+                ? `🔍 *యాక్టివ్ బుకింగ్‌లు ఏవీ లేవు*\n----------------------------------------\nఈ నంబర్‌తో ప్రస్తుతం ఎలాంటి బుకింగ్ కనుగొనబడలేదు.\n\nకొత్త సేవను బుక్ చేయడానికి *1* లేదా ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+                : `🔍 *No Active Bookings Found*\n----------------------------------------\nWe could not find any active booking for phone number *${phoneKey}*.\n\nReply *1* to Book a Health Service, or *0* for Main Menu.`
+        };
+    }
+
+    const staffText = myBooking.assignedStaff 
+        ? `👤 *${myBooking.assignedStaff.name}* (Ph: *${myBooking.assignedStaff.phone}*)`
+        : (isTelugu ? '⏳ కేటాయింపు ప్రక్రియలో ఉంది' : '⏳ Allocation in progress');
+
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `📋 *AMPLR HEALTH - బుకింగ్ స్థితి*\n----------------------------------------\n🔖 *బుకింగ్ ID*: *${myBooking.id}*\n🩺 *సేవ*: *${myBooking.serviceName}*\n👤 *రోగి*: *${myBooking.patientName}*\n📅 *షెడ్యూల్*: ${myBooking.date} (${myBooking.slot})\n📍 *చిరునామా*: ${myBooking.address || 'ఇంటి చిరునామా'}\n💵 *రుసుము*: ₹${myBooking.amount} (${myBooking.paymentStatus || 'Pending'})\n🚦 *స్థితి*: *${myBooking.status}*\n👨‍⚕️ *కేటాయించిన సిబ్బంది*: ${staffText}\n----------------------------------------\n↩️ మెనూ కోసం *0*, బుకింగ్ రద్దు కోసం *Cancel* అని టైప్ చేయండి.`
+            : `📋 *AMPLR HEALTH - BOOKING STATUS*\n----------------------------------------\n🔖 *Booking ID*: *${myBooking.id}*\n🩺 *Service*: *${myBooking.serviceName}*\n👤 *Patient*: *${myBooking.patientName}*\n📅 *Schedule*: ${myBooking.date} (${myBooking.slot})\n📍 *Location*: ${myBooking.address || 'Home Visit'}\n💵 *Amount*: ₹${myBooking.amount} (${myBooking.paymentStatus || 'Pending'})\n🚦 *Status*: *${myBooking.status}*\n👨‍⚕️ *Assigned Staff*: ${staffText}\n----------------------------------------\n↩️ Reply *0* for Main Menu, or reply *Cancel* to cancel booking.`
+    };
+}
+
+// ── CANCEL BOOKING HANDLER ───────────────────────────────────────────────────
+function handleCancelBooking(phoneKey, isTelugu) {
+    const bookings = getBookings();
+    const clean = (phoneKey || '').replace(/\D/g, '');
+    const myBooking = bookings.find(b => {
+        const p = (b.phone || b.patientPhone || '').replace(/\D/g, '');
+        const isActive = b.status !== 'Cancelled' && b.status !== 'Completed';
+        return p && (clean.includes(p) || p.includes(clean)) && isActive;
+    });
+
+    if (!myBooking) {
+        return {
+            type: 'TEXT',
+            text: isTelugu
+                ? `🔍 రద్దు చేయడానికి క్రియాశీల బుకింగ్‌లు ఏవీ లేవు. ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+                : `🔍 No active bookings found to cancel. Reply *0* for Main Menu.`
+        };
+    }
+
+    CONVERSATION_STATES[phoneKey] = {
+        step: 'CONFIRM_CANCEL_BOOKING',
+        lang: isTelugu ? 'te' : 'en',
+        cancelBookingId: myBooking.id,
+        data: {}
+    };
+
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `⚠️ *బుకింగ్ రద్దు నిర్ధారణ*\n----------------------------------------\nమీరు మీ బుకింగ్ *${myBooking.id}* (${myBooking.serviceName}) ను ఖచ్చితంగా రద్దు చేయాలనుకుంటున్నారా?\n\n1️⃣ ✅ *అవును, రద్దు చేయండి*\n2️⃣ ❌ *వద్దు, బుకింగ్ అలాగే ఉంచండి*\n----------------------------------------\n📲 *1 లేదా 2 రిప్లై ఇవ్వండి*`
+            : `⚠️ *CONFIRM CANCELLATION*\n----------------------------------------\nAre you sure you want to cancel booking *${myBooking.id}* for *${myBooking.serviceName}* on ${myBooking.date}?\n\n1️⃣ ✅ *Yes, Cancel My Booking*\n2️⃣ ❌ *No, Keep My Appointment*\n----------------------------------------\n📲 *Reply with 1 or 2*`
+    };
+}
+
+// ── REPEAT / BOOK AGAIN HANDLER ──────────────────────────────────────────────
+function handleRepeatBooking(phoneKey, isTelugu) {
+    const bookings = getBookings();
+    const clean = (phoneKey || '').replace(/\D/g, '');
+    const prev = bookings.find(b => {
+        const p = (b.phone || b.patientPhone || '').replace(/\D/g, '');
+        return p && (clean.includes(p) || p.includes(clean));
+    });
+
+    if (!prev) {
+        return {
+            type: 'TEXT',
+            text: isTelugu
+                ? `🔍 మునుపటి బుకింగ్ రికార్డులు ఏవీ కనుగొనబడలేదు. కొత్త సేవను బుక్ చేయడానికి *1* లేదా ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+                : `🔍 No previous booking history found for this number.\n\nReply *1* to Book a New Health Service, or *0* for Main Menu.`
+        };
+    }
+
+    CONVERSATION_STATES[phoneKey] = {
+        step: 'SELECT_APPOINTMENT_DATE',
+        isRepeatBooking: true,
+        lang: isTelugu ? 'te' : 'en',
+        data: {
+            patientName: prev.patientName,
+            selectedService: prev.serviceName,
+            selectedSubService: prev.serviceName,
+            houseAddress: prev.address,
+            landmark: prev.landmark || 'Same Landmark',
+            pincode: prev.pincode || '500081',
+            fee: prev.amount
+        }
+    };
+
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `🔁 *మునుపటి సేవను మళ్లీ బుక్ చేయండి*\n----------------------------------------\nస్వాగతం *${prev.patientName}* గారు! 👋\n\nమీ మునుపటి సేవను మళ్లీ బుక్ చేయాలనుకుంటున్నారా:\n🩺 *సేవ*: *${prev.serviceName}*\n🏠 *చిరునామా*: ${prev.address || 'సేవ్ చేయబడిన చిరునామా'}\n\n📅 *తేదీని ఎంచుకోండి:*\n1️⃣ ఈరోజు (${getISTDateString(0)})\n2️⃣ రేపు (${getISTDateString(1)})\n3️⃣ ఎల్లుండి (${getISTDateString(2)})\n----------------------------------------\n📲 *1, 2, లేదా 3 రిప్లై ఇవ్వండి, లేదా మెనూ కోసం 0*`
+            : `🔁 *REPEAT BOOKING - WELCOME BACK!*\n----------------------------------------\nHello *${prev.patientName}*! 👋\n\nWould you like to repeat your previous service:\n🩺 *Service*: *${prev.serviceName}*\n🏠 *Address*: ${prev.address || 'Saved Home Address'}\n\n📅 *Select Appointment Date:*\n1️⃣ Today (${getISTDateString(0)})\n2️⃣ Tomorrow (${getISTDateString(1)})\n3️⃣ Day After Tomorrow (${getISTDateString(2)})\n----------------------------------------\n📲 *Reply 1, 2, or 3, or enter DD/MM/YYYY*`
+    };
+}
+
+// ── TEMPLATE MENUS ───────────────────────────────────────────────────────────
 
 function getLanguageMenu() {
     return {
@@ -538,28 +764,28 @@ function getLanguageMenu() {
 function getMainMenuEnglish() {
     return {
         type: 'TEXT',
-        text: `👋 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can we assist you today?\n\n1️⃣ 🩺 *Book Health Service*\n2️⃣ 📋 *Our Services & Pricing Menu*\n3️⃣ 📞 *Contact Us & Support*\n4️⃣ 🤝 *Become a Partner*\n----------------------------------------\n📲 *Reply with number (1 to 4) of your choice*`
+        text: `👋 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can we assist you today?\n\n1️⃣ 🩺 *Book Health Service*\n2️⃣ 📋 *Our Services & Pricing Menu*\n3️⃣ 🔍 *Check Booking Status / Cancel*\n4️⃣ 🔁 *Re-book Last Service (Repeat)*\n5️⃣ 📞 *Contact Us & Support*\n6️⃣ 🤝 *Become a Partner*\n----------------------------------------\n📲 *Reply with number (1 to 6) of your choice*`
     };
 }
 
 function getMainMenuTelugu() {
     return {
         type: 'TEXT',
-        text: `👋 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 🩺 *ఆరోగ్య సేవను బుక్ చేయండి*\n2️⃣ 📋 *మా సేవలు & ధరల జాబితా*\n3️⃣ 📞 *మమ్మల్ని సంప్రదించండి*\n4️⃣ 🤝 *మాతో భాగస్వామ్యం అవ్వండి*\n----------------------------------------\n📲 *మీ ఎంపిక కోసం 1 నుండి 4 సంఖ్యను రిప్లై ఇవ్వండి*`
+        text: `👋 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 🩺 *ఆరోగ్య సేవను బుక్ చేయండి*\n2️⃣ 📋 *మా సేవలు & ధరల జాబితా*\n3️⃣ 🔍 *బుకింగ్ స్థితి / రద్దు చేయండి*\n4️⃣ 🔁 *మునుపటి సేవను మళ్లీ బుక్ చేయండి*\n5️⃣ 📞 *మమ్మల్ని సంప్రదించండి*\n6️⃣ 🤝 *మాతో భాగస్వామ్యం అవ్వండి*\n----------------------------------------\n📲 *మీ ఎంపిక కోసం 1 నుండి 6 సంఖ్యను రిప్లై ఇవ్వండి*`
     };
 }
 
 function getServicesMenuEnglish() {
     return {
         type: 'TEXT',
-        text: `🩺 *AMPLR HEALTH - SERVICES*\n----------------------------------------\nPlease select the healthcare service you require:\n\n1️⃣ 🩸 *Lab - Blood Collection at Home*\n2️⃣ 👩‍⚕️ *Nursing Services at Home*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapy at Home*\n5️⃣ 💓 *ECG at Home*\n6️⃣ 👨‍⚕️ *Doctor Consultation (Specialist)*\n7️⃣ 🚑 *Ambulance Services (24/7)*\n8️⃣ 🏥 *Hospital / Clinic Referral*\n----------------------------------------\n📲 *Reply with number (1 to 8) to book, or 0 for Main Menu*`
+        text: `🩺 *AMPLR HEALTH - SERVICES*\n----------------------------------------\nPlease select the healthcare service you require:\n\n1️⃣ 🩸 *Lab - Blood Collection at Home*\n2️⃣ 👩‍⚕️ *Nursing Services at Home*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapy at Home*\n5️⃣ 💓 *ECG at Home*\n6️⃣ 👨‍⚕️ *Doctor Consultation (Specialist)*\n7️⃣ 🚑 *Ambulance Services (24/7)*\n8️⃣ 🏥 *Hospital / Clinic Referral*\n9️⃣ 💊 *Medicine Delivery at Home*\n----------------------------------------\n📲 *Reply with number (1 to 9) to book, or 0 for Main Menu*`
     };
 }
 
 function getServicesMenuTelugu() {
     return {
         type: 'TEXT',
-        text: `🩺 *AMPLR HEALTH - సేవలు*\n----------------------------------------\nమీకు అవసరమైన ఆరోగ్య సేవను ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ - రక్త నమూనా సేకరణ*\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవలు (ఇంటి వద్ద)*\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్‌*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపీ*\n5️⃣ 💓 *ఇంటి వద్ద ECG*\n6️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్*\n7️⃣ 🚑 *అంబులెన్స్ సేవలు (24/7)*\n8️⃣ 🏥 *ఆసుపత్రి / క్లినిక్ సేవలు*\n----------------------------------------\n📲 *బుక్ చేయడానికి 1 నుండి 8 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
+        text: `🩺 *AMPLR HEALTH - సేవలు*\n----------------------------------------\nమీకు అవసరమైన ఆరోగ్య సేవను ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ - రక్త నమూనా సేకరణ*\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవలు (ఇంటి వద్ద)*\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్‌*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపీ*\n5️⃣ 💓 *ఇంటి వద్ద ECG*\n6️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్*\n7️⃣ 🚑 *అంబులెన్స్ సేవలు (24/7)*\n8️⃣ 🏥 *ఆసుపత్రి / క్లినిక్ సేవలు*\n9️⃣ 💊 *మందుల పంపిణీ (ఇంటి వద్ద)*\n----------------------------------------\n📲 *బుక్ చేయడానికి 1 నుండి 9 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
     };
 }
 

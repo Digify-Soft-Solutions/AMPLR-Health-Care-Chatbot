@@ -1,0 +1,162 @@
+{
+  "bookings": [],
+  "emergencyAlerts": [
+    {
+      "id": "EMG-915",
+      "timestamp": "2026-09-09T17:05:57.649Z",
+      "status": "Urgent Clinical Escalation",
+      "phone": "918888888888",
+      "triggerKeyword": "UNHAPPY_FEEDBACK_ESCALATION"
+    }
+  ],
+  "liveMessages": [],
+  "services": [
+    {
+      "id": "1",
+      "name": "Nursing Services at Home",
+      "category": "nursing",
+      "code": "NURSE",
+      "icon": "Stethoscope",
+      "basePrice": 800,
+      "priceDescription": "₹800 per visit / ₹1,500 for 12-hour shift",
+      "slots": [
+        "09:00 AM",
+        "11:00 AM",
+        "02:00 PM",
+        "05:00 PM",
+        "08:00 PM"
+      ],
+      "description": "Dressing, Injections, IV Infusion, Wound Care, Post-surgery Nursing.",
+      "active": true
+    },
+    {
+      "id": "2",
+      "name": "Caregiver / Caretaker at Home",
+      "category": "caretaker",
+      "code": "CARE",
+      "icon": "UserCheck",
+      "basePrice": 1200,
+      "priceDescription": "₹1,200 / day (12 Hours) / ₹2,000 (24 Hours)",
+      "slots": [
+        "08:00 AM Start",
+        "08:00 PM Start (Night)",
+        "24 Hours Shift"
+      ],
+      "description": "Elderly assistance, Hygiene care, Feeding support, Mobility aid.",
+      "active": true
+    },
+    {
+      "id": "3",
+      "name": "Physiotherapy at Home",
+      "category": "physio",
+      "code": "PHYSIO",
+      "icon": "Activity",
+      "basePrice": 900,
+      "priceDescription": "₹900 per 45-min session",
+      "slots": [
+        "09:00 AM",
+        "11:00 AM",
+        "03:00 PM",
+        "06:00 PM"
+      ],
+      "description": "Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.",
+      "active": true
+    },
+    {
+      "id": "4",
+      "name": "Lab - Blood Collection at Home",
+      "category": "lab",
+      "code": "LAB",
+      "icon": "FlaskConical",
+      "basePrice": 500,
+      "priceDescription": "Starting from ₹500 (Free home collection above ₹800)",
+      "slots": [
+        "07:00 AM (Fasting)",
+        "08:30 AM",
+        "10:00 AM",
+        "04:00 PM"
+      ],
+      "description": "CBC, Diabetes Profile, Thyroid, Lipid, Blood Sugar, Full Body Checkup.",
+      "active": true
+    },
+    {
+      "id": "5",
+      "name": "ECG at Home",
+      "category": "ecg",
+      "code": "ECG",
+      "icon": "HeartPulse",
+      "basePrice": 1100,
+      "priceDescription": "₹1,100 per test with instant report",
+      "slots": [
+        "08:00 AM",
+        "10:30 AM",
+        "02:00 PM",
+        "05:30 PM"
+      ],
+      "description": "12-Lead Digital ECG conducted at your doorstep by trained technician.",
+      "active": true
+    },
+    {
+      "id": "6",
+      "name": "Doctor Consultation (Specialist)",
+      "category": "doctor",
+      "code": "DOC",
+      "icon": "Stethoscope",
+      "basePrice": 499,
+      "priceDescription": "₹299 to ₹799 based on medical specialty",
+      "slots": [
+        "10:00 AM",
+        "01:00 PM",
+        "04:00 PM",
+        "07:00 PM"
+      ],
+      "description": "Dermatology, Cardiology, Orthopedics, Oncology, General Medicine.",
+      "active": true
+    },
+    {
+      "id": "7",
+      "name": "Ambulance Services (24/7)",
+      "category": "ambulance",
+      "code": "AMB",
+      "icon": "Truck",
+      "basePrice": 1400,
+      "priceDescription": "Starting from ₹1,400 (Omni/Toofan) to ₹1,800 (Tempo)",
+      "slots": [
+        "24/7 Immediate Dispatch",
+        "Scheduled Patient Transport"
+      ],
+      "description": "Basic Life Support (BLS) & Advance Cardiac Life Support (ACLS) Ambulances.",
+      "active": true
+    },
+    {
+      "id": "8",
+      "name": "Hospital / Clinic Referral",
+      "category": "hospital",
+      "code": "HOSP",
+      "icon": "Activity",
+      "basePrice": 0,
+      "priceDescription": "Free Consultation & Admission Assistance",
+      "slots": [
+        "24/7 Support"
+      ],
+      "description": "Direct partner hospital beds, cashless admission help, OPD booking.",
+      "active": true
+    },
+    {
+      "id": "9",
+      "name": "Medicine Delivery at Home",
+      "category": "pharmacy",
+      "code": "MED",
+      "icon": "Pill",
+      "basePrice": 0,
+      "priceDescription": "Free Prescription Upload & Doorstep Delivery",
+      "slots": [
+        "Express Delivery (2-4 Hrs)",
+        "Same Day Delivery",
+        "Scheduled Morning"
+      ],
+      "description": "Doorstep delivery of genuine prescribed medicines, surgical items, and healthcare consumables.",
+      "active": true
+    }
+  ]
+}

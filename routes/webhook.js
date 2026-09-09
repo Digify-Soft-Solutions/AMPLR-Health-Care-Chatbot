@@ -44,7 +44,7 @@ router.get('/', (req, res) => {
         }
         return res.sendStatus(403);
     }
-    res.status(200).send('Health Saathi Webhook Ready');
+    res.status(200).send('AMPLR Health WhatsApp Webhook Ready');
 });
 
 /**

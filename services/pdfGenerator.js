@@ -18,10 +18,10 @@ export function generateBookingPDF(booking) {
             // Header Banner
             doc.fillColor('#0f766e')
                 .fontSize(22)
-                .text('Health Saathi Chatbot', { align: 'left' });
+                .text('AMPLR HEALTH', { align: 'left' });
             doc.fontSize(10)
                 .fillColor('#64748b')
-                .text('by AutomateX.co.in | Doctor-Guided Home Care Receipt', { align: 'left' });
+                .text('Brings Hospital Care to Your Home | Booking Confirmation & Invoice', { align: 'left' });
             doc.moveDown(1.5);
 
             // Divider

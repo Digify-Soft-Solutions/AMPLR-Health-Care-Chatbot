@@ -1,34 +1,36 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { supabase } from '../services/supabaseClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_FILE = process.env.VERCEL ? '/tmp/live_db.json' : path.join(__dirname, 'live_db.json');
 
-
-export const SERVICES = [
+export const DEFAULT_SERVICES = [
     {
         id: '1',
-        name: 'Nursing at Home',
+        name: 'Nursing Services at Home',
         category: 'nursing',
         code: 'NURSE',
         icon: 'Stethoscope',
         basePrice: 800,
         priceDescription: '₹800 per visit / ₹1,500 for 12-hour shift',
         slots: ['09:00 AM', '11:00 AM', '02:00 PM', '05:00 PM', '08:00 PM'],
-        description: 'Dressing, Injections, IV Infusion, Wound Care, Post-surgery Nursing.'
+        description: 'Dressing, Injections, IV Infusion, Wound Care, Post-surgery Nursing.',
+        active: true
     },
     {
         id: '2',
-        name: 'Caretaker at Home',
+        name: 'Caregiver / Caretaker at Home',
         category: 'caretaker',
         code: 'CARE',
         icon: 'UserCheck',
         basePrice: 1200,
         priceDescription: '₹1,200 / day (12 Hours) / ₹2,000 (24 Hours)',
         slots: ['08:00 AM Start', '08:00 PM Start (Night)', '24 Hours Shift'],
-        description: 'Elderly assistance, Hygiene care, Feeding support, Mobility aid.'
+        description: 'Elderly assistance, Hygiene care, Feeding support, Mobility aid.',
+        active: true
     },
     {
         id: '3',
@@ -39,18 +41,20 @@ export const SERVICES = [
         basePrice: 900,
         priceDescription: '₹900 per 45-min session',
         slots: ['09:00 AM', '11:00 AM', '03:00 PM', '06:00 PM'],
-        description: 'Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.'
+        description: 'Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.',
+        active: true
     },
     {
         id: '4',
-        name: 'Lab Test / Sample Collection',
+        name: 'Lab - Blood Collection at Home',
         category: 'lab',
         code: 'LAB',
         icon: 'FlaskConical',
         basePrice: 500,
         priceDescription: 'Starting from ₹500 (Free home collection above ₹800)',
         slots: ['07:00 AM (Fasting)', '08:30 AM', '10:00 AM', '04:00 PM'],
-        description: 'CBC, Diabetes Profile, Thyroid, Lipid, Blood Sugar, Full Body Checkup.'
+        description: 'CBC, Diabetes Profile, Thyroid, Lipid, Blood Sugar, Full Body Checkup.',
+        active: true
     },
     {
         id: '5',
@@ -61,7 +65,56 @@ export const SERVICES = [
         basePrice: 1100,
         priceDescription: '₹1,100 per test with instant report',
         slots: ['08:00 AM', '10:30 AM', '02:00 PM', '05:30 PM'],
-        description: '12-Lead Digital ECG conducted at your doorstep by trained technician.'
+        description: '12-Lead Digital ECG conducted at your doorstep by trained technician.',
+        active: true
+    },
+    {
+        id: '6',
+        name: 'Doctor Consultation (Specialist)',
+        category: 'doctor',
+        code: 'DOC',
+        icon: 'Stethoscope',
+        basePrice: 499,
+        priceDescription: '₹299 to ₹799 based on medical specialty',
+        slots: ['10:00 AM', '01:00 PM', '04:00 PM', '07:00 PM'],
+        description: 'Dermatology, Cardiology, Orthopedics, Oncology, General Medicine.',
+        active: true
+    },
+    {
+        id: '7',
+        name: 'Ambulance Services (24/7)',
+        category: 'ambulance',
+        code: 'AMB',
+        icon: 'Truck',
+        basePrice: 1400,
+        priceDescription: 'Starting from ₹1,400 (Omni/Toofan) to ₹1,800 (Tempo)',
+        slots: ['24/7 Immediate Dispatch', 'Scheduled Patient Transport'],
+        description: 'Basic Life Support (BLS) & Advance Cardiac Life Support (ACLS) Ambulances.',
+        active: true
+    },
+    {
+        id: '8',
+        name: 'Hospital / Clinic Referral',
+        category: 'hospital',
+        code: 'HOSP',
+        icon: 'Activity',
+        basePrice: 0,
+        priceDescription: 'Free Consultation & Admission Assistance',
+        slots: ['24/7 Support'],
+        description: 'Direct partner hospital beds, cashless admission help, OPD booking.',
+        active: true
+    },
+    {
+        id: '9',
+        name: 'Medicine Delivery at Home',
+        category: 'pharmacy',
+        code: 'MED',
+        icon: 'Pill',
+        basePrice: 0,
+        priceDescription: 'Free Prescription Upload & Doorstep Delivery',
+        slots: ['Express Delivery (2-4 Hrs)', 'Same Day Delivery', 'Scheduled Morning'],
+        description: 'Doorstep delivery of genuine prescribed medicines, surgical items, and healthcare consumables.',
+        active: true
     }
 ];
 
@@ -81,13 +134,14 @@ function loadDB() {
             return {
                 bookings: Array.isArray(data.bookings) ? data.bookings : [],
                 emergencyAlerts: Array.isArray(data.emergencyAlerts) ? data.emergencyAlerts : [],
-                liveMessages: Array.isArray(data.liveMessages) ? data.liveMessages : []
+                liveMessages: Array.isArray(data.liveMessages) ? data.liveMessages : [],
+                services: Array.isArray(data.services) && data.services.length > 0 ? data.services : DEFAULT_SERVICES
             };
         }
     } catch (e) {
         console.error('[DB Load Error]:', e.message);
     }
-    return { bookings: [], emergencyAlerts: [], liveMessages: [] };
+    return { bookings: [], emergencyAlerts: [], liveMessages: [], services: DEFAULT_SERVICES };
 }
 
 function saveDB() {
@@ -95,7 +149,8 @@ function saveDB() {
         const data = {
             bookings: BOOKINGS,
             emergencyAlerts: EMERGENCY_ALERTS,
-            liveMessages: LIVE_WHATSAPP_MESSAGES
+            liveMessages: LIVE_WHATSAPP_MESSAGES,
+            services: SERVICES
         };
         fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
@@ -107,6 +162,7 @@ const initialDB = loadDB();
 export let BOOKINGS = initialDB.bookings;
 export let EMERGENCY_ALERTS = initialDB.emergencyAlerts;
 export let LIVE_WHATSAPP_MESSAGES = initialDB.liveMessages;
+export let SERVICES = initialDB.services;
 
 export const CONVERSATION_STATES = {};
 
@@ -116,6 +172,52 @@ export function getBookings() {
 
 export function getLiveMessages() {
     return LIVE_WHATSAPP_MESSAGES;
+}
+
+export function getServices() {
+    return SERVICES;
+}
+
+export function updateService(id, updatedFields) {
+    const idx = SERVICES.findIndex(s => s.id === id.toString());
+    if (idx !== -1) {
+        SERVICES[idx] = { 
+            ...SERVICES[idx], 
+            ...updatedFields,
+            basePrice: updatedFields.basePrice !== undefined ? Number(updatedFields.basePrice) : SERVICES[idx].basePrice
+        };
+        saveDB();
+        return SERVICES[idx];
+    }
+    return null;
+}
+
+export function addService(newService) {
+    const service = {
+        id: (SERVICES.length + 1).toString(),
+        name: newService.name || 'New Health Service',
+        category: newService.category || 'general',
+        code: (newService.name || 'SERV').substring(0, 5).toUpperCase(),
+        icon: newService.icon || 'Activity',
+        basePrice: Number(newService.basePrice) || 500,
+        priceDescription: newService.priceDescription || `₹${newService.basePrice || 500} per visit`,
+        slots: newService.slots || ['09:00 AM', '11:00 AM', '02:00 PM', '05:00 PM'],
+        description: newService.description || '',
+        active: newService.active !== false
+    };
+    SERVICES.push(service);
+    saveDB();
+    return service;
+}
+
+export function deleteService(id) {
+    const idx = SERVICES.findIndex(s => s.id === id.toString());
+    if (idx !== -1) {
+        const deleted = SERVICES.splice(idx, 1)[0];
+        saveDB();
+        return deleted;
+    }
+    return null;
 }
 
 export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, displayName = null) {
@@ -136,6 +238,21 @@ export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, display
         LIVE_WHATSAPP_MESSAGES.pop();
     }
     saveDB();
+
+    // Async sync to Supabase inquiries table
+    supabase.from('inquiries').insert([{
+        id: newMsg.id,
+        phone: newMsg.phone,
+        sender_name: newMsg.senderName,
+        user_message: newMsg.userMessage,
+        bot_reply_text: newMsg.botReplyText,
+        status: newMsg.status,
+        created_at: new Date().toISOString()
+    }]).then(({ error }) => {
+        if (error) console.warn('[Supabase Inquiry Sync]:', error.message);
+        else console.log(`[Supabase Inquiry Synced]: ${newMsg.id} from ${newMsg.phone}`);
+    }).catch(e => console.warn('[Supabase Inquiry Error]:', e.message));
+
     return newMsg;
 }
 
@@ -145,17 +262,39 @@ export function addBooking(bookingData) {
     const randomId = `${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const newBooking = {
-        id: randomId,
+        id: bookingData.id || randomId,
         ...bookingData,
         amount: bookingData.amount || 900,
         paymentStatus: bookingData.paymentStatus || 'Pending',
-        status: 'Pending Assignment',
-        assignedStaff: null, // Always pending manual staff assignment by admin!
+        status: bookingData.status || 'Pending Assignment',
+        assignedStaff: null,
         createdAt: new Date().toISOString()
     };
 
     BOOKINGS.unshift(newBooking);
     saveDB();
+
+    // Async sync to Supabase bookings table
+    supabase.from('bookings').insert([{
+        id: newBooking.id,
+        patient_name: newBooking.patientName || newBooking.name || 'WhatsApp Patient',
+        patient_phone: newBooking.phone || newBooking.patientPhone,
+        service_id: (newBooking.serviceId || '1').toString(),
+        service_name: newBooking.serviceName || 'Healthcare Consultation',
+        service_code: newBooking.serviceCode || 'SERV',
+        date: newBooking.date || new Date().toISOString().split('T')[0],
+        slot: newBooking.slot || 'Morning Slot',
+        address: newBooking.address || newBooking.location || '',
+        amount: Number(newBooking.amount || 800),
+        payment_status: newBooking.paymentStatus || 'Pending',
+        status: newBooking.status || 'Pending Assignment',
+        assigned_staff: null,
+        created_at: newBooking.createdAt || new Date().toISOString()
+    }]).then(({ error }) => {
+        if (error) console.warn('[Supabase Booking Sync]:', error.message);
+        else console.log(`[Supabase Booking Synced]: ${newBooking.id} (${newBooking.patientName})`);
+    }).catch(e => console.warn('[Supabase Booking Error]:', e.message));
+
     return newBooking;
 }
 
@@ -170,6 +309,15 @@ export function updateBookingStatus(id, newStatus, staffId = null) {
             }
         }
         saveDB();
+
+        // Async sync update to Supabase
+        supabase.from('bookings').update({
+            status: newStatus,
+            ...(booking.assignedStaff ? { assigned_staff: booking.assignedStaff } : {})
+        }).eq('id', id).then(({ error }) => {
+            if (error) console.warn('[Supabase Booking Update]:', error.message);
+        }).catch(e => {});
+
         return booking;
     }
     return null;

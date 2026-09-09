@@ -1,6 +1,10 @@
 node_modules
 dist
+.next
 .env
+.env*.local
 .DS_Store
 *.log
-
+read_docs.py
+parsed_bot_docs.txt
+test-supabase.js

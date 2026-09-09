@@ -1,32 +1,35 @@
 {
-  "name": "health-care-chatbot",
+  "name": "amplr-whatsapp-inquiry-management",
   "version": "1.0.0",
-  "description": "Health Saathi Chatbot by AutomateX.co.in - WhatsApp Healthcare Bot & CRM System",
+  "description": "AMPLR WhatsApp Inquiry Management System - WhatsApp Healthcare Bot & CRM System",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "dev": "concurrently \"node server.js\" \"next dev -p 3000 -H 0.0.0.0\"",
+    "dev:next": "next dev -p 3000 -H 0.0.0.0",
     "dev:server": "node server.js",
-    "dev:vite": "vite",
-    "dev": "concurrently \"node server.js\" \"vite\"",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "next build"
   },
   "keywords": [],
   "author": "AutomateX.co.in",
   "license": "ISC",
   "dependencies": {
-    "@vitejs/plugin-react": "^4.7.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "autoprefixer": "^10.5.5",
     "axios": "^1.20.0",
     "concurrently": "^10.0.5",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "lucide-react": "^1.35.0",
+    "next": "^16.3.4",
     "pdfkit": "^0.20.1",
+    "pg": "^8.23.0",
+    "postcss": "^8.5.28",
     "puppeteer-core": "^24.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "vite": "^6.2.0"
+    "tailwindcss": "^3.4.17"
   }
 }
