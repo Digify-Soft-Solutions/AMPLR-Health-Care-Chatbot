@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { DEFAULT_SERVICES, STAFF_POOL } from '../data/mockDatabase.js';
+import { DEFAULT_SERVICES, STAFF_POOL, getBookings, getLiveMessages, BOOKINGS, LIVE_WHATSAPP_MESSAGES } from '../data/mockDatabase.js';
 
 /**
  * 🏥 AMPLR Health - Supabase Realtime Database Service
@@ -156,11 +156,11 @@ export async function getInquiriesFromDB() {
             .limit(100);
 
         if (error) throw error;
-        return data || [];
+        if (data && data.length > 0) return data;
     } catch (err) {
         console.warn('[Supabase getInquiries error]:', err.message);
-        return [];
     }
+    return getLiveMessages();
 }
 
 export async function addInquiryToDB(phone, userMessage, botReplyText, senderName = null) {
@@ -173,19 +173,18 @@ export async function addInquiryToDB(phone, userMessage, botReplyText, senderNam
             sender_name: senderName ? `${senderName} (${cleanPhone})` : `Patient (${cleanPhone})`,
             user_message: userMessage || 'Message received',
             bot_reply_text: typeof botReplyText === 'string' ? botReplyText : (botReplyText ? botReplyText.text : 'Automated Reply Sent'),
-            status: 'Auto Replied (WhatsApp Cloud API)',
+            status: 'NEW_LEAD',
             created_at: new Date().toISOString()
         };
 
         const { data, error } = await supabase
             .from('inquiries')
             .insert([row])
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
         console.log(`[Supabase Inquiry Saved] ID: ${id} for ${cleanPhone}`);
-        return data;
+        return data ? data[0] : row;
     } catch (err) {
         console.error('[Supabase addInquiry error]:', err.message);
         return null;
@@ -201,7 +200,7 @@ export async function getBookingsFromDB() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data) {
+        if (data && data.length > 0) {
             return data.map(b => ({
                 id: b.id,
                 patientName: b.patient_name,
@@ -224,7 +223,7 @@ export async function getBookingsFromDB() {
     } catch (err) {
         console.warn('[Supabase getBookings error]:', err.message);
     }
-    return [];
+    return getBookings();
 }
 
 export async function addBookingToDB(bookingData) {

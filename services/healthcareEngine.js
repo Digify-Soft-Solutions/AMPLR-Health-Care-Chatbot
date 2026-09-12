@@ -472,8 +472,8 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `⏰ *సమయం*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)`
-                    : `⏰ *Time Slot*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME / FLAT ADDRESS*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Jubilee Hills*)`
+                    ? `⏰ *సమయం*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *దశ 4/5: ఇంటి చిరునామా & లొకేషన్*\n\nదయచేసి మీ ఇంటి నంబర్, అపార్ట్‌మెంట్ పేరు & వీధి/ప్రాంతం నమోదు చేయండి:\n(ఉదా: *Flat 204, Royal Palms, Banjara Hills*)\n\n📍 *సూచన*: మీరు మీ WhatsApp నుండి నేరుగా GPS లొకేషన్ పిన్ కూడా పంపవచ్చు (📎 Attach ➔ 📍 Location)!`
+                    : `⏰ *Time Slot*: *${state.data.timeSlot}*\n----------------------------------------\n🏠 *STEP 4 OF 5: HOME ADDRESS & LOCATION*\n\nPlease enter House/Flat No., Building Name & Street/Area:\n(e.g. *Flat 204, Royal Palms Apartment, Jubilee Hills*)\n\n📍 *Tip*: You can also share your GPS Location Pin directly via WhatsApp (📎 Attach ➔ 📍 Location)!`
             };
         }
 

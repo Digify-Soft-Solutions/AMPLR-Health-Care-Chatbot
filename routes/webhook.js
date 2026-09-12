@@ -154,6 +154,14 @@ router.post('/', async (req, res) => {
             if (br) { payloadData = br.id; messageText = br.title || br.id; }
         }
 
+        const locObj = target.location || rawBody.location;
+        if (locObj) {
+            const lat = locObj.latitude || locObj.lat;
+            const lng = locObj.longitude || locObj.lng || locObj.long;
+            const addr = locObj.address || locObj.name || '';
+            messageText = `GPS Location: ${lat}, ${lng}${addr ? ` (${addr})` : ''}`;
+        }
+
         if (!messageText) {
             if      (typeof target.text    === 'object' && target.text)    messageText = target.text.body    || target.text.text || '';
             else if (typeof target.text    === 'string')                   messageText = target.text;
