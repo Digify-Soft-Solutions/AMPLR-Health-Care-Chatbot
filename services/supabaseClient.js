@@ -8,10 +8,14 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 function createSafeFallbackClient() {
+    const fallbackResult = Promise.resolve({ data: null, error: new Error('Supabase credentials not configured in environment variables') });
     const handler = {
         get(target, prop) {
             if (prop === 'then') {
-                return (resolve) => resolve({ data: null, error: new Error('Supabase credentials not configured in environment variables') });
+                return fallbackResult.then.bind(fallbackResult);
+            }
+            if (prop === 'catch') {
+                return fallbackResult.catch.bind(fallbackResult);
             }
             if (typeof prop === 'string') {
                 return () => new Proxy({}, handler);

@@ -240,18 +240,25 @@ export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, display
     saveDB();
 
     // Async sync to Supabase inquiries table
-    supabase.from('inquiries').insert([{
-        id: newMsg.id,
-        phone: newMsg.phone,
-        sender_name: newMsg.senderName,
-        user_message: newMsg.userMessage,
-        bot_reply_text: newMsg.botReplyText,
-        status: newMsg.status,
-        created_at: new Date().toISOString()
-    }]).then(({ error }) => {
-        if (error) console.warn('[Supabase Inquiry Sync]:', error.message);
-        else console.log(`[Supabase Inquiry Synced]: ${newMsg.id} from ${newMsg.phone}`);
-    }).catch(e => console.warn('[Supabase Inquiry Error]:', e.message));
+    try {
+        const query = supabase.from('inquiries').insert([{
+            id: newMsg.id,
+            phone: newMsg.phone,
+            sender_name: newMsg.senderName,
+            user_message: newMsg.userMessage,
+            bot_reply_text: newMsg.botReplyText,
+            status: newMsg.status,
+            created_at: new Date().toISOString()
+        }]);
+        if (query && typeof query.then === 'function') {
+            query.then(({ error } = {}) => {
+                if (error) console.warn('[Supabase Inquiry Sync]:', error.message);
+                else console.log(`[Supabase Inquiry Synced]: ${newMsg.id} from ${newMsg.phone}`);
+            }).catch(e => console.warn('[Supabase Inquiry Error]:', e.message));
+        }
+    } catch (e) {
+        console.warn('[Supabase Inquiry Sync Skip]:', e.message);
+    }
 
     return newMsg;
 }

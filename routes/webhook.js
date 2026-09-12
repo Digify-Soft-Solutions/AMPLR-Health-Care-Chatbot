@@ -190,9 +190,8 @@ router.post('/', async (req, res) => {
         target.name || target.pushname || null;
 
     const botResponse = processHealthcareMessage(senderPhone, messageText, payloadData);
-    addLiveWhatsAppMessage(senderPhone, messageText || payloadData || 'Selection', botResponse.text, displayName);
 
-    // ── SEND 200 FIRST — Render stays alive after this, unlike Vercel ─────────
+    // ── SEND 200 FIRST — Acknowledge webhook immediately ─────────
     res.status(200).json({ status: 'accepted' });
 
     // ── DISPATCH ──────────────────────────────────────────────────────────────
@@ -202,6 +201,13 @@ router.post('/', async (req, res) => {
         console.log(`[Webhook Dispatch Result]:`, JSON.stringify(result));
     } catch (err) {
         console.error('[Webhook Dispatch Error]:', err.message);
+    }
+
+    // ── LOG TO DB (Safely in background) ──────────────────────────────────────
+    try {
+        addLiveWhatsAppMessage(senderPhone, messageText || payloadData || 'Selection', botResponse.text, displayName);
+    } catch (logErr) {
+        console.warn('[Webhook Log Warning]:', logErr.message);
     }
 });
 
