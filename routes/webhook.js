@@ -116,10 +116,15 @@ router.post('/', async (req, res) => {
         }
     } else {
         // AutobotChat / GoShort
-        rawMsgId = target.whts_ref_id ||
-            (target.context ? target.context.id : null) ||
-            rawBody.whts_ref_id ||
-            target.id;
+        // Unique incoming message ID: target.id is the message's unique primary ID (e.g. "1789208297")
+        // WARNING: target.whts_ref_id or target.context.id is the ID of the PREVIOUS bot message being replied to!
+        // Never prioritize context.id or whts_ref_id over target.id, or every reply in a conversation is dropped as duplicate.
+        rawMsgId = target.id ||
+            rawBody.id ||
+            target.msg_id ||
+            target.message_id ||
+            (target.context ? null : target.whts_ref_id) ||
+            rawBody.whts_ref_id;
 
         let rawPhone = (
             target.customer_phone || target.from_user || target.wa_id ||
@@ -169,14 +174,15 @@ router.post('/', async (req, res) => {
     senderPhone = senderPhone.toString().trim();
 
     // ── DEDUP ─────────────────────────────────────────────────────────────────
+    // When a unique rawMsgId exists, deduplicate strictly by rawMsgId.
+    // Do NOT block subsequent messages with same text (e.g. user re-sending "Hi").
     const contentKey = `${senderPhone.replace(/\D/g, '')}_${(messageText || payloadData || '').trim().toLowerCase()}`;
-    const dedupKey   = rawMsgId || contentKey;
+    const dedupKey   = rawMsgId ? `msg_${rawMsgId}` : `content_${contentKey}`;
 
     if (isDuplicate(dedupKey)) {
         console.log(`[Webhook Duplicate Dropped] key="${dedupKey}" from ${senderPhone}`);
         return res.status(200).json({ status: 'duplicate_dropped' });
     }
-    if (rawMsgId) isDuplicate(contentKey);
 
     // ── PROCESS ───────────────────────────────────────────────────────────────
     const displayName = rawBody.display_name || target.display_name ||

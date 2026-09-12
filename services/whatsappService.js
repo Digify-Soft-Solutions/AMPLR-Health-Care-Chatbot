@@ -87,7 +87,7 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
             console.log(`[Worker] POST → ${url} (payload type: ${payload.type})`);
             const res = await axios.post(url, payload, {
                 headers: { Authorization: `Bearer ${token}` },
-                timeout: 3000
+                timeout: 10000
             });
             console.log(`[Worker] AutobotChat response ${res.status}:`, JSON.stringify(res.data));
 
