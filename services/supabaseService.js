@@ -202,24 +202,40 @@ export async function getBookingsFromDB() {
 
         if (error) throw error;
         if (Array.isArray(data)) {
-            return data.map(b => ({
-                id: b.id,
-                patientName: b.patient_name,
-                patientPhone: b.patient_phone,
-                serviceId: b.service_id,
-                serviceName: b.service_name,
-                serviceCode: b.service_code,
-                date: b.date,
-                slot: b.slot,
-                address: b.address,
-                amount: Number(b.amount || 0),
-                paymentStatus: b.payment_status || 'Pending',
-                status: b.status || 'Pending Assignment',
-                assignedStaff: b.assigned_staff,
-                invoiceUrl: b.invoice_url,
-                invoiceId: b.invoice_id,
-                createdAt: b.created_at
-            }));
+            return data.map(b => {
+                const pinMatch = (b.address || '').match(/\b(?:PIN|Pin|Pincode|PINCODE)?:?\s*([1-9][0-9]{5})\b/);
+                const extractedPin = b.pincode || (pinMatch ? pinMatch[1] : null);
+
+                const lmMatch = (b.address || '').match(/Landmark:\s*([^,]+)/i);
+                const extractedLandmark = b.landmark || (lmMatch ? lmMatch[1].trim() : null);
+
+                let displayAddress = b.address || '';
+                if (displayAddress.includes('[LOCATION MESSAGE]')) {
+                    displayAddress = displayAddress.replace(/\[LOCATION MESSAGE\]/g, '📍 Shared Location Pin');
+                }
+
+                return {
+                    id: b.id,
+                    patientName: b.patient_name,
+                    patientPhone: b.patient_phone,
+                    phone: b.patient_phone,
+                    serviceId: b.service_id,
+                    serviceName: b.service_name,
+                    serviceCode: b.service_code,
+                    date: b.date,
+                    slot: b.slot,
+                    address: displayAddress,
+                    landmark: extractedLandmark,
+                    pincode: extractedPin,
+                    amount: Number(b.amount || 0),
+                    paymentStatus: b.payment_status || 'Pending',
+                    status: b.status || 'Pending Assignment',
+                    assignedStaff: b.assigned_staff,
+                    invoiceUrl: b.invoice_url,
+                    invoiceId: b.invoice_id,
+                    createdAt: b.created_at
+                };
+            });
         }
     } catch (err) {
         console.warn('[Supabase getBookings error, using fallback]:', err.message);
@@ -243,7 +259,7 @@ export async function addBookingToDB(bookingData) {
             service_code: bookingData.serviceCode || 'SERV',
             date: bookingData.date || new Date().toISOString().split('T')[0],
             slot: bookingData.slot || 'Morning Slot',
-            address: bookingData.address || '',
+            address: bookingData.location || bookingData.address || '',
             amount: Number(bookingData.amount || 800),
             payment_status: bookingData.paymentStatus || 'Pending',
             status: 'Pending Assignment',

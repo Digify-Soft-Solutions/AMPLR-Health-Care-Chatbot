@@ -479,7 +479,13 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- CAPTURE HOUSE ADDRESS ---
         case 'CAPTURE_HOUSE_ADDRESS': {
-            if (rawText.trim().length < 4) {
+            const isLocationMsg = rawText.includes('[LOCATION MESSAGE]') || 
+                                  rawText.includes('Location Pin') || 
+                                  rawText.includes('GPS Location') ||
+                                  rawText.includes('maps.google.com') ||
+                                  rawText.toLowerCase().includes('location');
+
+            if (rawText.trim().length < 4 && !isLocationMsg) {
                 return {
                     type: 'TEXT',
                     text: isTelugu
@@ -488,13 +494,17 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 };
             }
 
-            state.data.houseAddress = rawText.trim();
+            let savedAddress = rawText.trim();
+            if (savedAddress.includes('[LOCATION MESSAGE]') || savedAddress === '📍 Shared WhatsApp Location Pin' || isLocationMsg) {
+                savedAddress = savedAddress.includes('http') ? savedAddress : '📍 WhatsApp Live Location Pin';
+            }
+            state.data.houseAddress = savedAddress;
             state.step = 'CAPTURE_LANDMARK';
             return {
                 type: 'TEXT',
                 text: isTelugu
-                    ? `🏠 *చిరునామా*: *${state.data.houseAddress}*\n----------------------------------------\n📍 *ల్యాండ్‌మార్క్ (గుర్తు)*\n\nమా సిబ్బంది మీ ఇంటిని త్వరగా చేరుకోవడానికి సమీప ల్యాండ్‌మార్క్ నమోదు చేయండి:\n(ఉదా: *Near Metro Station* లేదా *Opp. Apollo Pharmacy*)`
-                    : `🏠 *Address*: *${state.data.houseAddress}*\n----------------------------------------\n📍 *NEARBY LANDMARK*\n\nPlease enter a nearby landmark so our staff can locate your home quickly:\n(e.g. *Opposite Apollo Pharmacy* or *Near Metro Station Gate 2*)`
+                    ? `📍 *లొకేషన్ / చిరునామా స్వీకరించబడింది:* *${state.data.houseAddress}*\n----------------------------------------\n📍 *ల్యాండ్‌మార్క్ లేదా అపార్ట్‌మెంట్ వివరాలు*\n\nమా హెల్త్‌కేర్ సిబ్బంది మీ ఇంటిని సులభంగా చేరుకోవడానికి సమీప ల్యాండ్‌మార్క్ లేదా ఫ్లాట్ నంబర్ నమోదు చేయండి:\n(ఉదా: *Flat 204, Opp. Apollo Pharmacy* లేదా *Near Bsk School*)`
+                    : `📍 *Location/Address Received:* *${state.data.houseAddress}*\n----------------------------------------\n📍 *NEARBY LANDMARK & APARTMENT DETAILS*\n\nPlease enter House/Flat No. or a nearby landmark so our staff can locate your home quickly:\n(e.g. *Flat 204, Opp. Apollo Pharmacy* or *Near Bsk School*)`
             };
         }
 
@@ -555,16 +565,18 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 addBooking({
                     id: bookingId,
                     patientName: state.data.patientName,
+                    patientPhone: userPhone,
+                    phone: userPhone,
                     serviceName: serviceBooked,
                     date: state.data.appointmentDate,
                     slot: state.data.timeSlot,
                     dateTime: `${state.data.appointmentDate} (${state.data.timeSlot})`,
-                    address: state.data.houseAddress,
+                    address: fullLocation,
+                    houseAddress: state.data.houseAddress,
                     landmark: state.data.landmark,
                     pincode: state.data.pincode,
                     location: fullLocation,
                     amount: state.data.fee,
-                    phone: userPhone,
                     status: 'Pending Assignment'
                 });
 
@@ -639,9 +651,11 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
             const partnerObj = PARTNER_FORMS[text];
             if (partnerObj) {
+                const partnerRefId = 'PTR-' + Math.floor(10000 + Math.random() * 90000);
+                delete CONVERSATION_STATES[phoneKey];
                 return {
                     type: 'TEXT',
-                    text: `🤝 *AMPLR HEALTH PARTNER ONBOARDING*\n----------------------------------------\nCategory: *${partnerObj.name}*\n\nThank you for choosing to become a valued partner with AMPLR HEALTH! 🏥\n\nPlease complete the official registration form below to begin your verification and onboarding process:\n\n👉 **Complete Partner Registration Form**:\n${partnerObj.url}\n\nOur onboarding team will review your details and contact you shortly for activation.\n----------------------------------------\n📞 Partner Support: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+                    text: `🤝 *AMPLR HEALTH - PARTNER ONBOARDING*\n----------------------------------------\n🔖 *Application ID*: *${partnerRefId}*\n🩺 *Profession*: *${partnerObj.name}*\n\nThank you for choosing to become an AMPLR HEALTH healthcare partner! 🏥\n\n👉 *Official Partner Application Form*:\n${partnerObj.url}\n\nPlease click the link above and submit your credentials. Our onboarding team will review your application and contact you for onboarding within 24 hours.\n----------------------------------------\n📞 Partner Desk: *${HELPLINE}*\n↩️ Reply *0* or *Hi* for Main Menu.`
                 };
             }
 

@@ -155,11 +155,14 @@ router.post('/', async (req, res) => {
         }
 
         const locObj = target.location || rawBody.location;
-        if (locObj) {
-            const lat = locObj.latitude || locObj.lat;
-            const lng = locObj.longitude || locObj.lng || locObj.long;
-            const addr = locObj.address || locObj.name || '';
-            messageText = `GPS Location: ${lat}, ${lng}${addr ? ` (${addr})` : ''}`;
+        const rawLat = target.latitude || rawBody.latitude || target.lat || rawBody.lat || locObj?.latitude || locObj?.lat;
+        const rawLng = target.longitude || rawBody.longitude || target.lng || rawBody.lng || locObj?.longitude || locObj?.lng || locObj?.long;
+        const rawLocAddr = target.address || rawBody.address || locObj?.address || locObj?.name || '';
+
+        if (rawLat && rawLng) {
+            messageText = `📍 GPS Location: https://maps.google.com/?q=${rawLat},${rawLng}${rawLocAddr ? ` (${rawLocAddr})` : ''}`;
+        } else if (target.type === 'location' || rawBody.type === 'location' || (typeof target.text === 'object' && target.text?.body === '[LOCATION MESSAGE]') || (typeof rawBody.text === 'object' && rawBody.text?.body === '[LOCATION MESSAGE]')) {
+            messageText = '📍 Shared WhatsApp Location Pin';
         }
 
         if (!messageText) {
@@ -168,6 +171,11 @@ router.post('/', async (req, res) => {
             else if (typeof target.message === 'object' && target.message) messageText = target.message.text || target.message.body || '';
             else if (typeof target.message === 'string')                   messageText = target.message;
             else messageText = target.body || target.msg || target.query || rawBody.text || rawBody.message || rawBody.body || '';
+        }
+
+        // Clean up any remaining raw "[LOCATION MESSAGE]" strings
+        if (typeof messageText === 'string' && messageText.includes('[LOCATION MESSAGE]')) {
+            messageText = '📍 Shared WhatsApp Location Pin';
         }
     }
 

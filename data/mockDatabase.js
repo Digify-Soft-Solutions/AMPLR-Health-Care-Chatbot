@@ -291,7 +291,7 @@ export function addBooking(bookingData) {
         service_code: newBooking.serviceCode || 'SERV',
         date: newBooking.date || new Date().toISOString().split('T')[0],
         slot: newBooking.slot || 'Morning Slot',
-        address: newBooking.address || newBooking.location || '',
+        address: newBooking.location || newBooking.address || '',
         amount: Number(newBooking.amount || 800),
         payment_status: newBooking.paymentStatus || 'Pending',
         status: newBooking.status || 'Pending Assignment',

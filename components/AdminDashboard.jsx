@@ -308,14 +308,14 @@ export default function AdminDashboard() {
                                                 )}
                                             </div>
                                             <div className="text-xs text-slate-600 font-medium mt-0.5">
-                                                👤 {b.patientName} • <span className="font-mono text-slate-500">+{b.phone}</span>
+                                                👤 {b.patientName} • <span className="font-mono text-slate-500">+{b.patientPhone || b.phone || '91'}</span>
                                             </div>
                                             <div className="text-[11px] text-slate-500 font-medium mt-0.5 flex flex-wrap items-center gap-1">
-                                                <span>🏠 {b.address || b.location || 'Address on file'}</span>
+                                                <span>🏠 {b.address?.replace(/\[LOCATION MESSAGE\]/g, '📍 Shared Location Pin') || b.location || 'Address on file'}</span>
                                                 {b.landmark && <span className="text-slate-400">({b.landmark})</span>}
                                             </div>
                                             <div className="text-[11px] text-teal-700 font-mono font-semibold mt-0.5">
-                                                📮 PIN: {b.pincode || 'N/A'}
+                                                📮 PIN: {b.pincode || (b.address?.match(/\b[1-9][0-9]{5}\b/)?.[0]) || 'N/A'}
                                             </div>
                                         </td>
                                         <td className="p-4 text-xs">
