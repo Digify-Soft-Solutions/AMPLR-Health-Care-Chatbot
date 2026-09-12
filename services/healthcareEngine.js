@@ -77,7 +77,17 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     const phoneKey = cleanUserPhone || userPhone;
 
     const rawText = (messageText || '').trim();
-    const effectiveInput = (payloadData || rawText).trim();
+    let effectiveInput = (payloadData || rawText).trim();
+
+    // Map digit emojis like 1️⃣ to '1'
+    const emojiMap = { '1️⃣': '1', '2️⃣': '2', '3️⃣': '3', '4️⃣': '4', '5️⃣': '5', '6️⃣': '6', '7️⃣': '7', '8️⃣': '8', '9️⃣': '9', '0️⃣': '0' };
+    for (const [emoji, digit] of Object.entries(emojiMap)) {
+        if (effectiveInput.includes(emoji)) {
+            effectiveInput = effectiveInput.replace(emoji, digit).trim();
+            break;
+        }
+    }
+
     const text = effectiveInput.toLowerCase();
 
     // ── 1. EMERGENCY ESCALATION ──────────────────────────────────────────────
@@ -241,20 +251,36 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 '9': 'Medicine Delivery at Home'
             };
 
-            if (serviceNames[text]) {
-                state.data.selectedService = serviceNames[text];
+            let chosenKey = null;
+            if (serviceNames[text]) chosenKey = text;
+            else {
+                const m = text.match(/^[1-9]/);
+                if (m && serviceNames[m[0]]) chosenKey = m[0];
+                else if (text.includes('lab') || text.includes('blood') || text.includes('phlebo') || text.includes('రక్త')) chosenKey = '1';
+                else if (text.includes('nurs') || text.includes('నర్సింగ్')) chosenKey = '2';
+                else if (text.includes('care') || text.includes('కేర్‌టేకర్')) chosenKey = '3';
+                else if (text.includes('physio') || text.includes('ఫిజియో')) chosenKey = '4';
+                else if (text.includes('ecg') || text.includes('ఈసీజీ')) chosenKey = '5';
+                else if (text.includes('doctor') || text.includes('consult') || text.includes('డాక్టర్')) chosenKey = '6';
+                else if (text.includes('ambulance') || text.includes('slab') || text.includes('అంబులెన్స్')) chosenKey = '7';
+                else if (text.includes('hospital') || text.includes('clinic') || text.includes('హాస్పిటల్')) chosenKey = '8';
+                else if (text.includes('medicine') || text.includes('pharmacy') || text.includes('మందులు')) chosenKey = '9';
+            }
+
+            if (chosenKey) {
+                state.data.selectedService = serviceNames[chosenKey];
 
                 // Specialty sub-menus
-                if (text === '6') {
+                if (chosenKey === '6') {
                     state.step = 'SELECT_DOCTOR_SPECIALTY';
                     return getDoctorSpecialtiesMenu(isTelugu);
-                } else if (text === '2') {
+                } else if (chosenKey === '2') {
                     state.step = 'SELECT_NURSING_PROCEDURE';
                     return getNursingProceduresMenu(isTelugu);
-                } else if (text === '7') {
+                } else if (chosenKey === '7') {
                     state.step = 'SELECT_AMBULANCE_TYPE';
                     return getAmbulanceMenu(isTelugu);
-                } else if (text === '9') {
+                } else if (chosenKey === '9') {
                     state.step = 'CAPTURE_MEDICINE_LIST';
                     return {
                         type: 'TEXT',
@@ -268,8 +294,8 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 return {
                     type: 'TEXT',
                     text: isTelugu
-                        ? `🩺 *ఎంపిక చేసిన సేవ*: *${serviceNames[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి పేరు మరియు వయస్సు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *రమేష్, 45*):`
-                        : `🩺 *Selected Service*: *${serviceNames[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Rahul Sharma, 52*):`
+                        ? `🩺 *ఎంపిక చేసిన సేవ*: *${serviceNames[chosenKey]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి పేరు మరియు వయస్సు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *రమేష్, 45*):`
+                        : `🩺 *Selected Service*: *${serviceNames[chosenKey]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Rahul Sharma, 52*):`
                 };
             }
 
@@ -304,7 +330,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- DOCTOR CONSULTATION SPECIALTY SELECTION ---
         case 'SELECT_DOCTOR_SPECIALTY': {
-            if (text === '0') {
+            if (text === '0' || text === 'menu') {
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
@@ -319,14 +345,29 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 '8': 'NUTRITIONIST / DIETITIAN (₹299)'
             };
 
-            if (doctorTypes[text]) {
-                state.data.selectedSubService = doctorTypes[text];
+            let chosenDocKey = null;
+            if (doctorTypes[text]) chosenDocKey = text;
+            else {
+                const m = text.match(/^[1-8]/);
+                if (m && doctorTypes[m[0]]) chosenDocKey = m[0];
+                else if (text.includes('derm') || text.includes('ortho') || text.includes('psy') || text.includes('ent')) chosenDocKey = '1';
+                else if (text.includes('pulmo') || text.includes('surg') || text.includes('uro') || text.includes('ivf')) chosenDocKey = '2';
+                else if (text.includes('gastro') || text.includes('cardio') || text.includes('endo') || text.includes('neuro')) chosenDocKey = '3';
+                else if (text.includes('onco') || text.includes('cancer')) chosenDocKey = '4';
+                else if (text.includes('ayur') || text.includes('pancha') || text.includes('homeo')) chosenDocKey = '5';
+                else if (text.includes('unani') || text.includes('siddha') || text.includes('yoga') || text.includes('naturo')) chosenDocKey = '6';
+                else if (text.includes('fertility') || text.includes('chronic')) chosenDocKey = '7';
+                else if (text.includes('nutrition') || text.includes('diet')) chosenDocKey = '8';
+            }
+
+            if (chosenDocKey) {
+                state.data.selectedSubService = doctorTypes[chosenDocKey];
                 state.step = 'CAPTURE_PATIENT_NAME';
                 return {
                     type: 'TEXT',
                     text: isTelugu
-                        ? `👨‍⚕️ *ఎంపిక చేసిన కన్సల్టేషన్*: *${doctorTypes[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *సురేష్, 40*):`
-                        : `👨‍⚕️ *Selected Specialty*: *${doctorTypes[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Amit Verma, 45*):`
+                        ? `👨‍⚕️ *ఎంపిక చేసిన కన్సల్టేషన్*: *${doctorTypes[chosenDocKey]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *సురేష్, 40*):`
+                        : `👨‍⚕️ *Selected Specialty*: *${doctorTypes[chosenDocKey]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Amit Verma, 45*):`
                 };
             }
             return getDoctorSpecialtiesMenu(isTelugu);
@@ -334,7 +375,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- NURSING PROCEDURE SELECTION ---
         case 'SELECT_NURSING_PROCEDURE': {
-            if (text === '0') {
+            if (text === '0' || text === 'menu') {
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
@@ -350,14 +391,30 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 '9': 'Nursing Care (1-12 Hours) (₹2,600)'
             };
 
-            if (nursingTypes[text]) {
-                state.data.selectedSubService = nursingTypes[text];
+            let chosenNurseKey = null;
+            if (nursingTypes[text]) chosenNurseKey = text;
+            else {
+                const m = text.match(/^[1-9]/);
+                if (m && nursingTypes[m[0]]) chosenNurseKey = m[0];
+                else if (text.includes('injection') || text.includes('push') || text.includes('cannula')) chosenNurseKey = '1';
+                else if (text.includes('iv fluid') || text.includes('infusion') || text.includes('drip') || text.includes('saline')) chosenNurseKey = '2';
+                else if (text.includes('dress') || text.includes('wound') || text.includes('catheter')) chosenNurseKey = '3';
+                else if (text.includes('vasculitis')) chosenNurseKey = '4';
+                else if (text.includes('bp') || text.includes('sugar') || text.includes('vital')) chosenNurseKey = '5';
+                else if (text.includes('bedridden') || text.includes('bath')) chosenNurseKey = '6';
+                else if (text.includes('1 to 3') || text.includes('1-3') || text.includes('3 hour')) chosenNurseKey = '7';
+                else if (text.includes('1 to 6') || text.includes('1-6') || text.includes('6 hour')) chosenNurseKey = '8';
+                else if (text.includes('1 to 12') || text.includes('1-12') || text.includes('12 hour')) chosenNurseKey = '9';
+            }
+
+            if (chosenNurseKey) {
+                state.data.selectedSubService = nursingTypes[chosenNurseKey];
                 state.step = 'CAPTURE_PATIENT_NAME';
                 return {
                     type: 'TEXT',
                     text: isTelugu
-                        ? `👩‍⚕️ *ఎంపిక చేసిన నర్సింగ్ సేవ*: *${nursingTypes[text]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి:`
-                        : `👩‍⚕️ *Selected Nursing Service*: *${nursingTypes[text]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age**:`
+                        ? `👩‍⚕️ *ఎంపిక చేసిన నర్సింగ్ సేవ*: *${nursingTypes[chosenNurseKey]}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి:`
+                        : `👩‍⚕️ *Selected Nursing Service*: *${nursingTypes[chosenNurseKey]}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age**:`
                 };
             }
             return getNursingProceduresMenu(isTelugu);
@@ -365,11 +422,15 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- AMBULANCE TYPE SELECTION ---
         case 'SELECT_AMBULANCE_TYPE': {
-            if (text === '0') {
+            if (text === '0' || text === 'menu') {
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
             const isToofan = (text === '1' || text.includes('toofan') || text.includes('omni'));
+            const isTempo = (text === '2' || text.includes('tempo') || text.includes('traveller'));
+            if (!isToofan && !isTempo) {
+                return getAmbulanceMenu(isTelugu);
+            }
             const vehicle = isToofan ? 'Toofan / Omni A/C' : 'Tempo Traveller A/C';
             const baseFare = isToofan ? 1400 : 1800;
             state.data.ambulanceVehicle = vehicle;
@@ -380,7 +441,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- AMBULANCE ADD-ON CONFIGURATION ---
         case 'SELECT_AMBULANCE_ADDON': {
-            if (text === '0') {
+            if (text === '0' || text === 'menu') {
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
@@ -389,16 +450,19 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             let configName = '';
             let totalFare = baseFare;
 
-            if (text === '1' || text.includes('alone') || text.includes('standard') || text.includes('vehicle')) {
+            const m = text.match(/^[1-4]/);
+            const digit = m ? m[0] : null;
+
+            if (digit === '1' || text.includes('alone') || text.includes('standard') || text.includes('vehicle')) {
                 configName = `${vehicle} (Standard Transport)`;
                 totalFare = baseFare;
-            } else if (text === '2' || text.includes('paramedic')) {
+            } else if (digit === '2' || text.includes('paramedic')) {
                 configName = `${vehicle} with Paramedic Staff`;
                 totalFare = baseFare + 1500;
-            } else if (text === '3' || text.includes('oxygen')) {
+            } else if (digit === '3' || text.includes('oxygen') || text.includes('o2')) {
                 configName = `${vehicle} with Oxygen Support`;
                 totalFare = baseFare + 1500;
-            } else if (text === '4' || text.includes('ventilator') || text.includes('icu')) {
+            } else if (digit === '4' || text.includes('ventilator') || text.includes('icu')) {
                 configName = `${vehicle} with ICU Ventilator`;
                 totalFare = baseFare + 4500;
             } else {
@@ -499,18 +563,43 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- SELECT TIME SLOT ---
         case 'SELECT_TIME_SLOT': {
-            if (text === '0') {
+            if (text === '0' || text === 'menu') {
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
 
-            const slotObj = TIME_SLOT_OPTIONS[text];
+            let chosenSlotKey = null;
+            if (TIME_SLOT_OPTIONS[text]) chosenSlotKey = text;
+            else {
+                const m = text.match(/^[1-5]/);
+                if (m && TIME_SLOT_OPTIONS[m[0]]) chosenSlotKey = m[0];
+                else if (text.includes('morning') || text.includes('ఉదయం') || text.includes('08:00')) chosenSlotKey = '1';
+                else if (text.includes('midday') || text.includes('మధ్యాహ్నం') || text.includes('11:00')) chosenSlotKey = '2';
+                else if (text.includes('afternoon') || text.includes('అపరాహ్నం') || text.includes('02:00')) chosenSlotKey = '3';
+                else if (text.includes('evening') || text.includes('సాయంత్రం') || text.includes('05:00')) chosenSlotKey = '4';
+                else if (text.includes('night') || text.includes('రాత్రి') || text.includes('10:00')) chosenSlotKey = '5';
+            }
+
+            const slotObj = chosenSlotKey ? TIME_SLOT_OPTIONS[chosenSlotKey] : null;
             if (!slotObj) {
                 return {
-                    type: 'TEXT',
+                    type: 'INTERACTIVE_LIST',
                     text: isTelugu
-                        ? `❌ *దయచేసి సరైన సమయ స్లాట్‌ను (1 నుండి 5) ఎంచుకోండి:*`
-                        : `❌ *Invalid Option!* Please select a valid time slot number (*1 to 5*):`
+                        ? `❌ *దయచేసి సరైన సమయ స్లాట్‌ను ఎంచుకోండి:*`
+                        : `❌ *Please choose your convenient time slot:*`,
+                    listTitle: '⏰ Select Slot',
+                    sections: [
+                        {
+                            title: 'IST Time Slots',
+                            rows: [
+                                { id: '1', title: '1️⃣ Morning Slot', description: '08:00 AM – 10:00 AM IST' },
+                                { id: '2', title: '2️⃣ Midday Slot', description: '11:00 AM – 01:00 PM IST' },
+                                { id: '3', title: '3️⃣ Afternoon Slot', description: '02:00 PM – 04:00 PM IST' },
+                                { id: '4', title: '4️⃣ Evening Slot', description: '05:00 PM – 07:00 PM IST' },
+                                { id: '5', title: '5️⃣ Night Care Slot', description: '08:00 PM – 10:00 PM IST' }
+                            ]
+                        }
+                    ]
                 };
             }
 
@@ -721,7 +810,22 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
 
-            const partnerObj = PARTNER_FORMS[text];
+            let chosenPartnerKey = null;
+            if (PARTNER_FORMS[text]) chosenPartnerKey = text;
+            else {
+                const m = text.match(/^[1-8]/);
+                if (m && PARTNER_FORMS[m[0]]) chosenPartnerKey = m[0];
+                else if (text.includes('lab') || text.includes('phlebo') || text.includes('blood')) chosenPartnerKey = '1';
+                else if (text.includes('nurs')) chosenPartnerKey = '2';
+                else if (text.includes('care')) chosenPartnerKey = '3';
+                else if (text.includes('physio')) chosenPartnerKey = '4';
+                else if (text.includes('ecg')) chosenPartnerKey = '5';
+                else if (text.includes('ambulance')) chosenPartnerKey = '6';
+                else if (text.includes('doctor')) chosenPartnerKey = '7';
+                else if (text.includes('hospital') || text.includes('clinic')) chosenPartnerKey = '8';
+            }
+
+            const partnerObj = chosenPartnerKey ? PARTNER_FORMS[chosenPartnerKey] : null;
             if (partnerObj) {
                 const partnerRefId = 'PTR-' + Math.floor(10000 + Math.random() * 90000);
                 delete CONVERSATION_STATES[phoneKey];
@@ -736,17 +840,17 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- PRICING CATALOG VIEW ---
         case 'SELECT_PRICING_CATEGORY': {
-            if (text === '1') {
+            if (text === '1' || text.includes('doctor') || text.includes('డాక్టర్')) {
                 state.data.selectedService = 'Doctor Consultation';
                 state.step = 'SELECT_DOCTOR_SPECIALTY';
                 return getDoctorSpecialtiesMenu(isTelugu);
             }
-            if (text === '2') {
+            if (text === '2' || text.includes('nursing') || text.includes('nurse') || text.includes('నర్సింగ్')) {
                 state.data.selectedService = 'Nursing Services at Home';
                 state.step = 'SELECT_NURSING_PROCEDURE';
                 return getNursingProceduresMenu(isTelugu);
             }
-            if (text === '3') {
+            if (text === '3' || text.includes('ambulance') || text.includes('slab') || text.includes('అంబులెన్స్')) {
                 state.data.selectedService = 'Ambulance Services';
                 state.step = 'SELECT_AMBULANCE_TYPE';
                 return getAmbulanceMenu(isTelugu);
