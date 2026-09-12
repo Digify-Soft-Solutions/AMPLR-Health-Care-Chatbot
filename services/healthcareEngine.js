@@ -77,7 +77,8 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     const phoneKey = cleanUserPhone || userPhone;
 
     const rawText = (messageText || '').trim();
-    const text = rawText.toLowerCase();
+    const effectiveInput = (payloadData || rawText).trim();
+    const text = effectiveInput.toLowerCase();
 
     // ── 1. EMERGENCY ESCALATION ──────────────────────────────────────────────
     const isEmergency = EMERGENCY_KEYWORDS.some(kw => text.includes(kw));
@@ -368,11 +369,51 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 state.step = 'MAIN_MENU';
                 return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
             }
-            state.data.selectedSubService = text === '1' ? 'Toofan / Omni A/C Ambulance' : 'Tempo Traveller A/C Ambulance';
+            const isToofan = (text === '1' || text.includes('toofan') || text.includes('omni'));
+            const vehicle = isToofan ? 'Toofan / Omni A/C' : 'Tempo Traveller A/C';
+            const baseFare = isToofan ? 1400 : 1800;
+            state.data.ambulanceVehicle = vehicle;
+            state.data.ambulanceBaseFare = baseFare;
+            state.step = 'SELECT_AMBULANCE_ADDON';
+            return getAmbulanceAddonMenu(vehicle, baseFare, isTelugu);
+        }
+
+        // --- AMBULANCE ADD-ON CONFIGURATION ---
+        case 'SELECT_AMBULANCE_ADDON': {
+            if (text === '0') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+            const vehicle = state.data.ambulanceVehicle || 'Ambulance';
+            const baseFare = state.data.ambulanceBaseFare || 1400;
+            let configName = '';
+            let totalFare = baseFare;
+
+            if (text === '1' || text.includes('alone') || text.includes('standard') || text.includes('vehicle')) {
+                configName = `${vehicle} (Standard Transport)`;
+                totalFare = baseFare;
+            } else if (text === '2' || text.includes('paramedic')) {
+                configName = `${vehicle} with Paramedic Staff`;
+                totalFare = baseFare + 1500;
+            } else if (text === '3' || text.includes('oxygen')) {
+                configName = `${vehicle} with Oxygen Support`;
+                totalFare = baseFare + 1500;
+            } else if (text === '4' || text.includes('ventilator') || text.includes('icu')) {
+                configName = `${vehicle} with ICU Ventilator`;
+                totalFare = baseFare + 4500;
+            } else {
+                return getAmbulanceAddonMenu(vehicle, baseFare, isTelugu);
+            }
+
+            state.data.selectedSubService = `${configName} (₹${totalFare})`;
+            state.data.fee = totalFare;
             state.step = 'CAPTURE_PATIENT_NAME';
+
             return {
                 type: 'TEXT',
-                text: `🚑 *Selected*: *${state.data.selectedSubService}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Pickup Address**:`
+                text: isTelugu
+                    ? `🚑 *అంబులెన్స్ సిద్ధమైంది*: *${state.data.selectedSubService}*\n----------------------------------------\n📝 *దశ 1/3: రోగి వివరాలు*\n\nదయచేసి రోగి పేరు మరియు వయస్సు నమోదు చేయండి (ఉదా: *రమేష్ శర్మ, 52*):`
+                    : `🚑 *Ambulance Configured*: *${state.data.selectedSubService}*\n----------------------------------------\n📝 *STEP 1 OF 3: PATIENT DETAILS*\n\nPlease enter the **Patient Name and Age** (e.g. *Rahul Sharma, 52*):`
             };
         }
 
@@ -393,10 +434,15 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             const serviceBooked = state.data.selectedSubService || state.data.selectedService || 'Healthcare Service';
 
             return {
-                type: 'TEXT',
+                type: 'INTERACTIVE_BUTTONS',
                 text: isTelugu
-                    ? `👤 *రోగి*: *${state.data.patientName}*\n🩺 *సేవ*: *${serviceBooked}*\n----------------------------------------\n📅 *దశ 2/5: అపాయింట్‌మెంట్ తేదీ*\n\n1️⃣ ఈరోజు (${getISTDateString(0)})\n2️⃣ రేపు (${getISTDateString(1)})\n3️⃣ ఎల్లుండి (${getISTDateString(2)})\n----------------------------------------\n📲 *తేదీ ఎంపిక కోసం 1, 2, లేదా 3 రిప్లై ఇవ్వండి (లేదా DD/MM/YYYY)*`
-                    : `👤 *Patient*: *${state.data.patientName}*\n🩺 *Service*: *${serviceBooked}*\n----------------------------------------\n📅 *STEP 2 OF 5: APPOINTMENT DATE*\n\n1️⃣ Today (${getISTDateString(0)})\n2️⃣ Tomorrow (${getISTDateString(1)})\n3️⃣ Day After Tomorrow (${getISTDateString(2)})\n----------------------------------------\n📲 *Reply 1, 2, or 3, or enter DD/MM/YYYY*`
+                    ? `👤 *రోగి*: *${state.data.patientName}*\n🩺 *సేవ*: *${serviceBooked}*\n----------------------------------------\n📅 *దశ 2/5: అపాయింట్‌మెంట్ తేదీ*\nదయచేసి క్రింది బటన్ నొక్కండి లేదా DD/MM/YYYY నమోదు చేయండి:`
+                    : `👤 *Patient*: *${state.data.patientName}*\n🩺 *Service*: *${serviceBooked}*\n----------------------------------------\n📅 *STEP 2 OF 5: APPOINTMENT DATE*\nPlease tap a button below or enter DD/MM/YYYY:`,
+                buttons: [
+                    { id: '1', text: `📅 Today` },
+                    { id: '2', text: `📅 Tomorrow` },
+                    { id: '3', text: `📅 Day After` }
+                ]
             };
         }
 
@@ -417,19 +463,37 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 state.data.appointmentDate = rawText.trim();
             } else {
                 return {
-                    type: 'TEXT',
+                    type: 'INTERACTIVE_BUTTONS',
                     text: isTelugu
-                        ? `❌ *దయచేసి సరైన తేదీని ఎంచుకోండి:*\nఈరోజు కోసం *1*, రేపు కోసం *2*, ఎల్లుండి కోసం *3* లేదా DD/MM/YYYY నమోదు చేయండి.`
-                        : `❌ *Please select a valid date:*\nReply *1* for Today, *2* for Tomorrow, *3* for Day After Tomorrow, or enter *DD/MM/YYYY*.`
+                        ? `❌ *దయచేసి సరైన తేదీని ఎంచుకోండి:*\nక్రింది బటన్ నొక్కండి లేదా DD/MM/YYYY నమోదు చేయండి.`
+                        : `❌ *Please select a valid date:*\nTap a button below or enter DD/MM/YYYY:`,
+                    buttons: [
+                        { id: '1', text: `📅 Today` },
+                        { id: '2', text: `📅 Tomorrow` },
+                        { id: '3', text: `📅 Day After` }
+                    ]
                 };
             }
 
             state.step = 'SELECT_TIME_SLOT';
             return {
-                type: 'TEXT',
+                type: 'INTERACTIVE_LIST',
                 text: isTelugu
-                    ? `📅 *ఎంపిక చేసిన తేదీ*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *దశ 3/5: సమయ స్లాట్ (IST) ఎంచుకోండి*\n\n1️⃣ 🌅 *ఉదయం స్లాట్* (08:00 AM – 10:00 AM IST)\n2️⃣ ☀️ *మధ్యాహ్నం స్లాట్* (11:00 AM – 01:00 PM IST)\n3️⃣ 🌤️ *అపరాహ్నం స్లాట్* (02:00 PM – 04:00 PM IST)\n4️⃣ 🌆 *సాయంత్రం స్లాట్* (05:00 PM – 07:00 PM IST)\n5️⃣ 🌙 *రాత్రి స్లాట్* (08:00 PM – 10:00 PM IST)\n----------------------------------------\n📲 *స్లాట్ ఎంపిక కోసం 1 నుండి 5 రిప్లై ఇవ్వండి*`
-                    : `📅 *Selected Date*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *STEP 3 OF 5: PREFERRED TIME SLOT (IST)*\n\nPlease select your convenient Indian Standard Time slot:\n\n1️⃣ 🌅 *Morning* (08:00 AM – 10:00 AM IST)\n2️⃣ ☀️ *Midday* (11:00 AM – 01:00 PM IST)\n3️⃣ 🌤️ *Afternoon* (02:00 PM – 04:00 PM IST)\n4️⃣ 🌆 *Evening* (05:00 PM – 07:00 PM IST)\n5️⃣ 🌙 *Night Care* (08:00 PM – 10:00 PM IST)\n----------------------------------------\n📲 *Reply with number (1 to 5)*`
+                    ? `📅 *ఎంపిక చేసిన తేదీ*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *దశ 3/5: సమయ స్లాట్ (IST) ఎంచుకోండి*`
+                    : `📅 *Selected Date*: *${state.data.appointmentDate}*\n----------------------------------------\n⏰ *STEP 3 OF 5: PREFERRED TIME SLOT (IST)*\nPlease choose your convenient time slot:`,
+                listTitle: '⏰ Select Slot',
+                sections: [
+                    {
+                        title: 'IST Time Slots',
+                        rows: [
+                            { id: '1', title: '1️⃣ Morning Slot', description: '08:00 AM – 10:00 AM IST' },
+                            { id: '2', title: '2️⃣ Midday Slot', description: '11:00 AM – 01:00 PM IST' },
+                            { id: '3', title: '3️⃣ Afternoon Slot', description: '02:00 PM – 04:00 PM IST' },
+                            { id: '4', title: '4️⃣ Evening Slot', description: '05:00 PM – 07:00 PM IST' },
+                            { id: '5', title: '5️⃣ Night Care Slot', description: '08:00 PM – 10:00 PM IST' }
+                        ]
+                    }
+                ]
             };
         }
 
@@ -461,10 +525,14 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 state.step = 'REVIEW_AND_CONFIRM';
 
                 return {
-                    type: 'TEXT',
+                    type: 'INTERACTIVE_BUTTONS',
                     text: isTelugu
-                        ? `📋 *AMPLR HEALTH - రిపీట్ బుకింగ్ సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *బుకింగ్ నిర్ధారించండి (Confirm)*\n0️⃣ ❌ *రద్దు చేయండి (Cancel)*\n\n📲 *నిర్ధారించడానికి 1 రిప్లై ఇవ్వండి*`
-                        : `📋 *AMPLR HEALTH - REPEAT BOOKING CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *Confirm Re-Booking Now*\n0️⃣ ❌ *Cancel*\n\n📲 *Reply 1 to Confirm or 0 to Cancel*`
+                        ? `📋 *AMPLR HEALTH - రిపీట్ బుకింగ్ సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n👇 *నిర్ధారించడానికి బటన్ నొక్కండి:*`
+                        : `📋 *AMPLR HEALTH - REPEAT BOOKING CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n👇 *Tap a button below to confirm or cancel:*`,
+                    buttons: [
+                        { id: '1', text: '✅ Confirm Re-Booking' },
+                        { id: '0', text: '❌ Cancel' }
+                    ]
                 };
             }
 
@@ -548,10 +616,14 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             state.step = 'REVIEW_AND_CONFIRM';
 
             return {
-                type: 'TEXT',
+                type: 'INTERACTIVE_BUTTONS',
                 text: isTelugu
-                    ? `📋 *AMPLR HEALTH - బుకింగ్ వివరాల సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *బుకింగ్ నిర్ధారించండి (Confirm)*\n0️⃣ ❌ *రద్దు చేయండి (Cancel)*\n\n📲 *నిర్ధారించడానికి 1 రిప్లై ఇవ్వండి*`
-                    : `📋 *AMPLR HEALTH - BOOKING REVIEW & CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n1️⃣ ✅ *Confirm Booking Now*\n0️⃣ ❌ *Cancel Booking*\n\n📲 *Reply 1 to Confirm or 0 to Cancel*`
+                    ? `📋 *AMPLR HEALTH - బుకింగ్ వివరాల సమీక్ష*\n----------------------------------------\n🩺 *సేవ*: ${serviceBooked}\n💵 *అంచనా రుసుము*: ₹${fee}\n👤 *రోగి*: ${state.data.patientName}\n📅 *తేదీ*: ${state.data.appointmentDate}\n⏰ *సమయం*: ${state.data.timeSlotLabel}\n🏠 *చిరునామా*: ${state.data.houseAddress}\n📍 *ల్యాండ్‌మార్క్*: ${state.data.landmark}\n📮 *పిన్‌కోడ్*: ${state.data.pincode}\n----------------------------------------\n👇 *నిర్ధారించడానికి బటన్ నొక్కండి:*`
+                    : `📋 *AMPLR HEALTH - BOOKING REVIEW & CONFIRMATION*\n----------------------------------------\n🩺 *Service*: ${serviceBooked}\n💵 *Estimated Fee*: ₹${fee}\n👤 *Patient*: ${state.data.patientName}\n📅 *Date*: ${state.data.appointmentDate}\n⏰ *Time Slot*: ${state.data.timeSlotLabel}\n🏠 *Address*: ${state.data.houseAddress}\n📍 *Landmark*: ${state.data.landmark}\n📮 *Pincode*: ${state.data.pincode}\n----------------------------------------\n👇 *Tap a button below to confirm or cancel:*`,
+                buttons: [
+                    { id: '1', text: '✅ Confirm Booking' },
+                    { id: '0', text: '❌ Cancel Booking' }
+                ]
             };
         }
 
@@ -750,10 +822,14 @@ function handleCancelBooking(phoneKey, isTelugu) {
     };
 
     return {
-        type: 'TEXT',
+        type: 'INTERACTIVE_BUTTONS',
         text: isTelugu
-            ? `⚠️ *బుకింగ్ రద్దు నిర్ధారణ*\n----------------------------------------\nమీరు మీ బుకింగ్ *${myBooking.id}* (${myBooking.serviceName}) ను ఖచ్చితంగా రద్దు చేయాలనుకుంటున్నారా?\n\n1️⃣ ✅ *అవును, రద్దు చేయండి*\n2️⃣ ❌ *వద్దు, బుకింగ్ అలాగే ఉంచండి*\n----------------------------------------\n📲 *1 లేదా 2 రిప్లై ఇవ్వండి*`
-            : `⚠️ *CONFIRM CANCELLATION*\n----------------------------------------\nAre you sure you want to cancel booking *${myBooking.id}* for *${myBooking.serviceName}* on ${myBooking.date}?\n\n1️⃣ ✅ *Yes, Cancel My Booking*\n2️⃣ ❌ *No, Keep My Appointment*\n----------------------------------------\n📲 *Reply with 1 or 2*`
+            ? `⚠️ *బుకింగ్ రద్దు నిర్ధారణ*\n----------------------------------------\nమీరు మీ బుకింగ్ *${myBooking.id}* (${myBooking.serviceName}) ను ఖచ్చితంగా రద్దు చేయాలనుకుంటున్నారా?`
+            : `⚠️ *CONFIRM CANCELLATION*\n----------------------------------------\nAre you sure you want to cancel booking *${myBooking.id}* for *${myBooking.serviceName}* on ${myBooking.date}?`,
+        buttons: [
+            { id: '1', text: '❌ Yes, Cancel' },
+            { id: '2', text: '✅ Keep Active' }
+        ]
     };
 }
 
@@ -802,77 +878,245 @@ function handleRepeatBooking(phoneKey, isTelugu) {
 
 function getLanguageMenu() {
     return {
-        type: 'TEXT',
-        text: `🏥 *AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nWelcome! Please select your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:\n\n1️⃣  *English*\n2️⃣  *తెలుగు (Telugu)*\n----------------------------------------\n📲 *Reply with 1 or 2 to continue*`
+        type: 'INTERACTIVE_BUTTONS',
+        text: `🏥 *AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nWelcome to AMPLR HEALTH! 👋\nPlease select your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:`,
+        buttons: [
+            { id: '1', text: '🇬🇧 English' },
+            { id: '2', text: '🇮🇳 తెలుగు' }
+        ]
     };
 }
 
 function getMainMenuEnglish() {
     return {
-        type: 'TEXT',
-        text: `👋 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can we assist you today?\n\n1️⃣ 🩺 *Book Health Service*\n2️⃣ 📋 *Our Services & Pricing Menu*\n3️⃣ 🔍 *Check Booking Status / Cancel*\n4️⃣ 🔁 *Re-book Last Service (Repeat)*\n5️⃣ 📞 *Contact Us & Support*\n6️⃣ 🤝 *Become a Partner*\n----------------------------------------\n📲 *Reply with number (1 to 6) of your choice*`
+        type: 'INTERACTIVE_LIST',
+        text: `👋 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can our healthcare team assist you today?\n\n1️⃣ 🩺 *Book Health Service*\n2️⃣ 💰 *Pricing & Tariff Menu*\n3️⃣ 🔍 *Check Booking Status / Cancel*\n4️⃣ 🔁 *Re-book Last Service*\n5️⃣ 📞 *24/7 Helpline & Support*\n6️⃣ 🤝 *Become a Healthcare Partner*\n----------------------------------------\n👇 *Tap 'View Menu' below or reply 1 to 6:*`,
+        listTitle: '📋 View Menu',
+        sections: [
+            {
+                title: 'AMPLR Healthcare',
+                rows: [
+                    { id: '1', title: '1️⃣ Book Service', description: 'Nursing, Physio, Lab, ECG at Home' },
+                    { id: '2', title: '2️⃣ Pricing & Tariff', description: 'Doctors, Nursing & Ambulance Slabs' },
+                    { id: '3', title: '3️⃣ Check Status', description: 'Track or cancel your active booking' },
+                    { id: '4', title: '4️⃣ Repeat Booking', description: 'Re-order past home healthcare visit' },
+                    { id: '5', title: '5️⃣ 24/7 Helpline', description: 'Call care coordinator: 7997888448' },
+                    { id: '6', title: '6️⃣ Become a Partner', description: 'Doctor, Nurse, Lab, Driver onboarding' }
+                ]
+            }
+        ]
     };
 }
 
 function getMainMenuTelugu() {
     return {
-        type: 'TEXT',
-        text: `👋 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 🩺 *ఆరోగ్య సేవను బుక్ చేయండి*\n2️⃣ 📋 *మా సేవలు & ధరల జాబితా*\n3️⃣ 🔍 *బుకింగ్ స్థితి / రద్దు చేయండి*\n4️⃣ 🔁 *మునుపటి సేవను మళ్లీ బుక్ చేయండి*\n5️⃣ 📞 *మమ్మల్ని సంప్రదించండి*\n6️⃣ 🤝 *మాతో భాగస్వామ్యం అవ్వండి*\n----------------------------------------\n📲 *మీ ఎంపిక కోసం 1 నుండి 6 సంఖ్యను రిప్లై ఇవ్వండి*`
+        type: 'INTERACTIVE_LIST',
+        text: `👋 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 🩺 *ఆరోగ్య సేవను బుక్ చేయండి*\n2️⃣ 💰 *సేవలు & ధరల జాబితా*\n3️⃣ 🔍 *బుకింగ్ స్థితి / రద్దు చేయండి*\n4️⃣ 🔁 *మునుపటి సేవను మళ్లీ బుక్ చేయండి*\n5️⃣ 📞 *24/7 హెల్ప్‌లైన్*\n6️⃣ 🤝 *మాతో భాగస్వామ్యం అవ్వండి*\n----------------------------------------\n👇 *క్రింది 'ప్రధాన మెనూ' నొక్కండి లేదా 1-6 రిప్లై ఇవ్వండి:*`,
+        listTitle: '📋 ప్రధాన మెనూ',
+        sections: [
+            {
+                title: 'సేవల జాబితా',
+                rows: [
+                    { id: '1', title: '1️⃣ సేవను బుక్ చేయండి', description: 'నర్సింగ్, ఫిజియో, ల్యాబ్, ECG' },
+                    { id: '2', title: '2️⃣ ధరల జాబితా', description: 'డాక్టర్లు, నర్సింగ్, అంబులెన్స్ రేట్లు' },
+                    { id: '3', title: '3️⃣ బుకింగ్ స్థితి', description: 'మీ బుకింగ్ స్థితిని తనిఖీ చేయండి' },
+                    { id: '4', title: '4️⃣ రిపీట్ బుకింగ్', description: 'గత సేవను త్వరగా మళ్లీ బుక్ చేయండి' },
+                    { id: '5', title: '5️⃣ 24/7 హెల్ప్‌లైన్', description: 'సహాయం కోసం కాల్ చేయండి: 7997888448' },
+                    { id: '6', title: '6️⃣ భాగస్వామి అవ్వండి', description: 'హెల్త్‌కేర్ నెట్‌వర్క్‌లో చేరండి' }
+                ]
+            }
+        ]
     };
 }
 
 function getServicesMenuEnglish() {
     return {
-        type: 'TEXT',
-        text: `🩺 *AMPLR HEALTH - SERVICES*\n----------------------------------------\nPlease select the healthcare service you require:\n\n1️⃣ 🩸 *Lab - Blood Collection at Home*\n2️⃣ 👩‍⚕️ *Nursing Services at Home*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapy at Home*\n5️⃣ 💓 *ECG at Home*\n6️⃣ 👨‍⚕️ *Doctor Consultation (Specialist)*\n7️⃣ 🚑 *Ambulance Services (24/7)*\n8️⃣ 🏥 *Hospital / Clinic Referral*\n9️⃣ 💊 *Medicine Delivery at Home*\n----------------------------------------\n📲 *Reply with number (1 to 9) to book, or 0 for Main Menu*`
+        type: 'INTERACTIVE_LIST',
+        text: `🩺 *AMPLR HEALTH - SERVICES*\n----------------------------------------\nPlease select the healthcare service you require at home:\n\n1️⃣ 🩸 *Lab - Blood Collection* (from ₹500)\n2️⃣ 👩‍⚕️ *Nursing Services at Home* (₹800)\n3️⃣ 🧓 *Caregiver / Caretaker* (₹1,200)\n4️⃣ 🏃‍♂️ *Physiotherapy at Home* (₹900)\n5️⃣ 💓 *ECG at Home* (₹1,100)\n6️⃣ 👨‍⚕️ *Doctor Consultation* (₹299-₹799)\n7️⃣ 🚑 *Ambulance Services (24/7)*\n8️⃣ 🏥 *Hospital / Clinic Referral*\n9️⃣ 💊 *Medicine Delivery at Home*\n----------------------------------------\n👇 *Tap 'Select Service' below or reply 1 to 9:*`,
+        listTitle: '🩺 Select Service',
+        sections: [
+            {
+                title: 'Home Care & Diagnostics',
+                rows: [
+                    { id: '1', title: '1️⃣ Lab Blood Tests', description: 'CBC, Sugar, Thyroid home collection' },
+                    { id: '2', title: '2️⃣ Nursing at Home', description: 'Dressing, Injections, IV Infusion' },
+                    { id: '3', title: '3️⃣ Caregiver Care', description: '12h / 24h elderly & bedside assistance' },
+                    { id: '4', title: '4️⃣ Physiotherapy', description: 'Post-op, paralysis & pain rehab' },
+                    { id: '5', title: '5️⃣ ECG at Home', description: 'Instant 12-lead test & report' }
+                ]
+            },
+            {
+                title: 'Specialist & Transport',
+                rows: [
+                    { id: '6', title: '6️⃣ Doctor Consult', description: 'Specialist tele-consult from ₹299' },
+                    { id: '7', title: '7️⃣ 24/7 Ambulance', description: 'Toofan / Tempo with O2 & Ventilator' },
+                    { id: '8', title: '8️⃣ Hospital Referral', description: 'Priority OPD & IPD admission support' },
+                    { id: '9', title: '9️⃣ Medicine Delivery', description: 'Prescription medicine doorstep delivery' }
+                ]
+            }
+        ]
     };
 }
 
 function getServicesMenuTelugu() {
     return {
-        type: 'TEXT',
-        text: `🩺 *AMPLR HEALTH - సేవలు*\n----------------------------------------\nమీకు అవసరమైన ఆరోగ్య సేవను ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ - రక్త నమూనా సేకరణ*\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవలు (ఇంటి వద్ద)*\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్‌*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపీ*\n5️⃣ 💓 *ఇంటి వద్ద ECG*\n6️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్*\n7️⃣ 🚑 *అంబులెన్స్ సేవలు (24/7)*\n8️⃣ 🏥 *ఆసుపత్రి / క్లినిక్ సేవలు*\n9️⃣ 💊 *మందుల పంపిణీ (ఇంటి వద్ద)*\n----------------------------------------\n📲 *బుక్ చేయడానికి 1 నుండి 9 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
+        type: 'INTERACTIVE_LIST',
+        text: `🩺 *AMPLR HEALTH - సేవలు*\n----------------------------------------\nమీకు అవసరమైన ఆరోగ్య సేవను ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ - రక్త నమూనా సేకరణ*\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవలు (ఇంటి వద్ద)*\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్‌*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపీ*\n5️⃣ 💓 *ఇంటి వద్ద ECG*\n6️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్*\n7️⃣ 🚑 *అంబులెన్స్ సేవలు (24/7)*\n8️⃣ 🏥 *ఆసుపత్రి / క్లినిక్ సేవలు*\n9️⃣ 💊 *మందుల పంపిణీ (ఇంటి వద్ద)*\n----------------------------------------\n👇 *క్రింది 'సేవను ఎంచుకోండి' నొక్కండి లేదా 1-9 రిప్లై ఇవ్వండి:*`,
+        listTitle: '🩺 సేవను ఎంచుకోండి',
+        sections: [
+            {
+                title: 'ఇంటి వద్ద ఆరోగ్య సేవలు',
+                rows: [
+                    { id: '1', title: '1️⃣ ల్యాబ్ రక్త పరీక్షలు', description: 'రక్త నమూనా సేకరణ' },
+                    { id: '2', title: '2️⃣ నర్సింగ్ సేవలు', description: 'డ్రెస్సింగ్, ఇంజెక్షన్లు, సెలైన్' },
+                    { id: '3', title: '3️⃣ సంరక్షకులు', description: 'వృద్ధుల సంరక్షణ మరియు సహాయం' },
+                    { id: '4', title: '4️⃣ ఫిజియోథెరపీ', description: 'నొప్పులు మరియు పునరావాసం' },
+                    { id: '5', title: '5️⃣ ECG సేవలు', description: 'తక్షణ 12-లీడ్ ECG పరీక్ష' }
+                ]
+            },
+            {
+                title: 'స్పెషలిస్ట్ & అంబులెన్స్',
+                rows: [
+                    { id: '6', title: '6️⃣ డాక్టర్ సంప్రదింపులు', description: 'నిపుణుల టెలి-కన్సల్టేషన్' },
+                    { id: '7', title: '7️⃣ 24/7 అంబులెన్స్', description: 'ఆక్సిజన్ & వెంటిలేటర్ సదుపాయం' },
+                    { id: '8', title: '8️⃣ ఆసుపత్రి రిఫరల్', description: 'ఆసుపత్రి అడ్మిషన్ సహాయం' },
+                    { id: '9', title: '9️⃣ మందుల పంపిణీ', description: 'ఇంటి వద్దకే మందుల డెలివరీ' }
+                ]
+            }
+        ]
     };
 }
 
 function getPricingMenuEnglish() {
     return {
-        type: 'TEXT',
-        text: `💰 *AMPLR HEALTH - SERVICE PRICING TARIFF*\n----------------------------------------\nSelect a category to view detailed rate cards:\n\n1️⃣ 👨‍⚕️ *Doctor Consultation Rates* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 - ₹2,600)\n3️⃣ 🚑 *Ambulance Transport Slabs* (From ₹1,400)\n----------------------------------------\n📲 *Reply 1, 2, or 3, or reply 0 for Main Menu*`
+        type: 'INTERACTIVE_BUTTONS',
+        text: `💰 *AMPLR HEALTH - SERVICE PRICING TARIFF*\n----------------------------------------\nSelect a healthcare category to view rates & book:\n\n1️⃣ 👨‍⚕️ *Doctor Consultation Rates* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 - ₹2,600)\n3️⃣ 🚑 *Ambulance Transport Slabs* (From ₹1,400)\n----------------------------------------\n👇 *Tap a button below or reply 1, 2, 3:*`,
+        buttons: [
+            { id: '1', text: '👨‍⚕️ Doctor Rates' },
+            { id: '2', text: '👩‍⚕️ Nursing Rates' },
+            { id: '3', text: '🚑 Ambulance Slabs' }
+        ]
     };
 }
 
 function getPricingMenuTelugu() {
     return {
-        type: 'TEXT',
-        text: `💰 *AMPLR HEALTH - సేవల ధరల వివరాలు*\n----------------------------------------\nవివరమైన ధరల జాబితాను చూడటానికి ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్ ఛార్జీలు* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ఛార్జీలు* (₹200 - ₹2,600)\n3️⃣ 🚑 *అంబులెన్స్ ఛార్జీలు* (₹1,400 నుండి)\n----------------------------------------\n📲 *1, 2, లేదా 3 రిప్లై ఇవ్వండి, లేదా 0 మెనూ కోసం*`
+        type: 'INTERACTIVE_BUTTONS',
+        text: `💰 *AMPLR HEALTH - సేవల ధరల వివరాలు*\n----------------------------------------\nవివరమైన ధరల జాబితాను చూడటానికి ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్ ఛార్జీలు* (₹299 - ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ఛార్జీలు* (₹200 - ₹2,600)\n3️⃣ 🚑 *అంబులెన్స్ ఛార్జీలు* (₹1,400 నుండి)\n----------------------------------------\n👇 *క్రింది బటన్ నొక్కండి లేదా 1, 2, 3 రిప్లై ఇవ్వండి:*`,
+        buttons: [
+            { id: '1', text: '👨‍⚕️ డాక్టర్ రేట్లు' },
+            { id: '2', text: '👩‍⚕️ నర్సింగ్ రేట్లు' },
+            { id: '3', text: '🚑 అంబులెన్స్ రేట్లు' }
+        ]
     };
 }
 
 function getDoctorSpecialtiesMenu(isTelugu) {
     return {
-        type: 'TEXT',
-        text: `👨‍⚕️ *AMPLR HEALTH - DOCTOR CONSULTATION TARIFF*\n----------------------------------------\n1️⃣ *DERM / ORTHO / PSY / ENT* ── *₹399*\n2️⃣ *PULMO / MS.SURG / URO / IVF* ── *₹599*\n3️⃣ *GASTRO / CARDIO / ENDO / NEURO* ── *₹599*\n4️⃣ *ONCO (Oncology)* ── *₹799*\n5️⃣ *AYUR / PANCHA / HOMEO* ── *₹299*\n6️⃣ *UNANI / SIDDHA / YOGA / NATURO* ── *₹299*\n7️⃣ *FERTILITY / CHRONIC* ── *₹499*\n8️⃣ *NUTRITIONIST / DIETITIAN* ── *₹299*\n----------------------------------------\n📲 *Reply with number (1 to 8) to book your doctor, or 0 for Menu*`
+        type: 'INTERACTIVE_LIST',
+        text: `👨‍⚕️ *AMPLR HEALTH - DOCTOR CONSULTATION TARIFF*\n----------------------------------------\nPlease select a specialty to book your doctor consult:`,
+        listTitle: '👨‍⚕️ Select Specialty',
+        sections: [
+            {
+                title: 'Clinical Specialties',
+                rows: [
+                    { id: '1', title: '1️⃣ DERM / ORTHO / ENT', description: 'Skin, Bone & ENT Specialists (₹399)' },
+                    { id: '2', title: '2️⃣ PULMO / URO / IVF', description: 'Chest, Urology & Surgery (₹599)' },
+                    { id: '3', title: '3️⃣ GASTRO / CARDIO / NEURO', description: 'Stomach, Heart & Neuro (₹599)' },
+                    { id: '4', title: '4️⃣ ONCO (Oncology)', description: 'Cancer Specialist Consult (₹799)' }
+                ]
+            },
+            {
+                title: 'AYUSH & Nutrition',
+                rows: [
+                    { id: '5', title: '5️⃣ AYUR / HOMEO', description: 'Ayurveda & Homeopathy (₹299)' },
+                    { id: '6', title: '6️⃣ UNANI / NATUROPATHY', description: 'Siddha, Yoga & Naturopathy (₹299)' },
+                    { id: '7', title: '7️⃣ FERTILITY / CHRONIC', description: 'Reproductive & Chronic Care (₹499)' },
+                    { id: '8', title: '8️⃣ NUTRITIONIST / DIET', description: 'Personalized Clinical Diet (₹299)' }
+                ]
+            }
+        ]
     };
 }
 
 function getNursingProceduresMenu(isTelugu) {
     return {
-        type: 'TEXT',
-        text: `👩‍⚕️ *AMPLR HEALTH - NURSING CHARGES AT HOME*\n----------------------------------------\n1️⃣ *Injection / IV Push / Cannulation* (Visit) ── *₹300*\n2️⃣ *IV Fluid Administration* (Visit) ── *₹500*\n3️⃣ *Dressing / Wound Care / Catheter* (Visit) ── *₹700*\n4️⃣ *Vasculitis Dressing* (Visit) ── *₹900*\n5️⃣ *BP / Sugar / Vitals Check* (Visit) ── *₹200*\n6️⃣ *Bedridden Patient Care* (Visit) ── *₹700*\n7️⃣ *Nursing Care (1 to 3 Hours)* ── *₹700*\n8️⃣ *Nursing Care (1 to 6 Hours)* ── *₹1,400*\n9️⃣ *Nursing Care (1 to 12 Hours)* ── *₹2,600*\n----------------------------------------\n📲 *Reply with number (1 to 9) to book nursing service, or 0 for Menu*`
+        type: 'INTERACTIVE_LIST',
+        text: `👩‍⚕️ *AMPLR HEALTH - HOME NURSING PROCEDURES*\n----------------------------------------\nPlease select the nursing care procedure you need:`,
+        listTitle: '👩‍⚕️ Select Procedure',
+        sections: [
+            {
+                title: 'Clinical Procedures (Visit)',
+                rows: [
+                    { id: '1', title: '1️⃣ Injection / IV Push', description: 'Cannulation, IM/IV injection (₹300)' },
+                    { id: '2', title: '2️⃣ IV Fluid Infusion', description: 'Saline / IV drip administration (₹500)' },
+                    { id: '3', title: '3️⃣ Dressing & Catheter', description: 'Wound care, Foley catheter (₹700)' },
+                    { id: '4', title: '4️⃣ Vasculitis Dressing', description: 'Specialized chronic ulcer care (₹900)' },
+                    { id: '5', title: '5️⃣ BP & Sugar Check', description: 'Vitals & blood glucose testing (₹200)' },
+                    { id: '6', title: '6️⃣ Bedridden Care', description: 'Ryle tube, bed bath & hygiene (₹700)' }
+                ]
+            },
+            {
+                title: 'Hourly Dedicated Shifts',
+                rows: [
+                    { id: '7', title: '7️⃣ 1 to 3 Hours Shift', description: 'Short medical supervision (₹700)' },
+                    { id: '8', title: '8️⃣ 1 to 6 Hours Shift', description: 'Half-day dedicated nurse (₹1,400)' },
+                    { id: '9', title: '9️⃣ 1 to 12 Hours Shift', description: 'Full 12-hour day/night shift (₹2,600)' }
+                ]
+            }
+        ]
     };
 }
 
 function getAmbulanceMenu(isTelugu) {
     return {
-        type: 'TEXT',
-        text: `🚑 *AMPLR HEALTH - AMBULANCE RATE CARD*\n----------------------------------------\n1️⃣ *TOOFAN / OMNI (Patient Transport A/C)*\n    • 1-10 km: ₹1,400  |  1-50 km: ₹4,000\n    • 1-100 km: ₹6,000 |  1-200 km: ₹10,500\n    • >300 km: ₹25 / KM | Waiting: ₹300/hr\n\n2️⃣ *TEMPO TRAVELLER (Patient Transport A/C)*\n    • 1-10 km: ₹1,800  |  1-50 km: ₹5,500\n    • 1-100 km: ₹9,500 |  1-200 km: ₹16,000\n    • >300 km: ₹30 / KM | Waiting: ₹300/hr\n\n➕ *Optional Add-ons*: Paramedic (₹1,500-₹1,700) • Oxygen (₹1,500) • Ventilator (₹4,000-₹5,000)\n----------------------------------------\n📲 *Reply 1 for Toofan/Omni or 2 for Tempo Traveller to book*`
+        type: 'INTERACTIVE_BUTTONS',
+        text: `🚑 *AMPLR HEALTH - 24/7 AMBULANCE SERVICES*\n----------------------------------------\nPlease select your preferred ambulance vehicle type:\n\n1️⃣ *TOOFAN / OMNI (Patient Transport A/C)*\n    • 1-10 km: ₹1,400  |  1-50 km: ₹4,000\n    • 1-100 km: ₹6,000 |  1-200 km: ₹10,500\n\n2️⃣ *TEMPO TRAVELLER (Patient Transport A/C)*\n    • 1-10 km: ₹1,800  |  1-50 km: ₹5,500\n    • 1-100 km: ₹9,500 |  1-200 km: ₹16,000\n----------------------------------------\n👇 *Tap a button below or reply 1 or 2:*`,
+        buttons: [
+            { id: '1', text: '🚙 Toofan / Omni A/C' },
+            { id: '2', text: '🚐 Tempo Traveller A/C' }
+        ]
+    };
+}
+
+function getAmbulanceAddonMenu(vehicleName, baseFare, isTelugu) {
+    return {
+        type: 'INTERACTIVE_LIST',
+        text: `🚑 *AMPLR HEALTH - ${vehicleName.toUpperCase()}*\n----------------------------------------\nBase Fare (1-10 km): *₹${baseFare}*\n\nPlease choose your required medical setup / equipment:`,
+        listTitle: '➕ Select Add-on',
+        sections: [
+            {
+                title: 'Medical Configurations',
+                rows: [
+                    { id: '1', title: '1️⃣ Vehicle Alone', description: `Standard Patient Transport (₹${baseFare})` },
+                    { id: '2', title: '2️⃣ With Paramedic', description: `Trained medical staff (+₹1,500 = ₹${baseFare + 1500})` },
+                    { id: '3', title: '3️⃣ With Oxygen Support', description: `Continuous O2 cylinder (+₹1,500 = ₹${baseFare + 1500})` },
+                    { id: '4', title: '4️⃣ With ICU Ventilator', description: `Critical life-support (+₹4,500 = ₹${baseFare + 4500})` }
+                ]
+            }
+        ]
     };
 }
 
 function getPartnerProfessionMenu() {
     return {
-        type: 'TEXT',
-        text: `🤝 *WELCOME TO AMPLR HEALTH PARTNER NETWORK*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nGrow your healthcare services with AMPLR HEALTH.\nPlease select your profession / service category:\n\n1️⃣ 🩸 *Lab Technician (Phlebotomist)*\n2️⃣ 👩‍⚕️ *Nursing Professional*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapist*\n5️⃣ 💓 *ECG Technician*\n6️⃣ 🚑 *Ambulance Partner*\n7️⃣ 👨‍⚕️ *Doctor*\n8️⃣ 🏥 *Hospital / Clinic*\n----------------------------------------\n📲 *Reply with number (1 to 8) to get registration form, or 0 for Menu*`
+        type: 'INTERACTIVE_LIST',
+        text: `🤝 *WELCOME TO AMPLR HEALTH PARTNER NETWORK*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nGrow your healthcare services with AMPLR HEALTH.\nPlease select your profession / service category:`,
+        listTitle: '🤝 Select Profession',
+        sections: [
+            {
+                title: 'Healthcare Categories',
+                rows: [
+                    { id: '1', title: '🩸 Lab Technician', description: 'Phlebotomist & home sample collection' },
+                    { id: '2', title: '👩‍⚕️ Nursing Professional', description: 'GNM / B.Sc Nurse for home procedures' },
+                    { id: '3', title: '🧓 Caregiver / Caretaker', description: 'Elderly care & bedside assistance' },
+                    { id: '4', title: '🏃‍♂️ Physiotherapist', description: 'BPT / MPT home rehabilitation' },
+                    { id: '5', title: '💓 ECG Technician', description: 'Home ECG testing & cardiac screening' },
+                    { id: '6', title: '🚑 Ambulance Partner', description: 'Transport, BLS & ACLS fleet' },
+                    { id: '7', title: '👨‍⚕️ Doctor Consultation', description: 'General & Specialist Tele-consult' },
+                    { id: '8', title: '🏥 Hospital / Clinic', description: 'Institutional healthcare tie-up' }
+                ]
+            }
+        ]
     };
 }

@@ -150,8 +150,14 @@ router.post('/', async (req, res) => {
         if (interactiveObj) {
             const lr = interactiveObj.list_reply   || (interactiveObj.type === 'list_reply'   ? interactiveObj : null);
             const br = interactiveObj.button_reply || (interactiveObj.type === 'button_reply' ? interactiveObj : null);
-            if (lr) { payloadData = lr.id; messageText = lr.title || lr.id; }
-            if (br) { payloadData = br.id; messageText = br.title || br.id; }
+            if (lr) { payloadData = lr.id; messageText = lr.id; }
+            if (br) { payloadData = br.id; messageText = br.id; }
+        }
+
+        const altSelectedId = target.selected_id || rawBody.selected_id || target.button_response?.id || target.list_response?.id;
+        if (altSelectedId) {
+            payloadData = altSelectedId;
+            messageText = altSelectedId;
         }
 
         const locObj = target.location || rawBody.location;
