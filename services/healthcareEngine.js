@@ -126,21 +126,38 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
         return handleRepeatBooking(phoneKey, currentState?.lang === 'te');
     }
 
-    // ── 6. PARTNER ONBOARDING FLOW TRIGGER ───────────────────────────────────
+    // ── 6. GREETING — PRIORITY RESET ─────────────────────────────────────────
+    // Greetings ALWAYS reset state → fresh language selection menu
+    const GREETINGS = [
+        'hi', 'hii', 'hiii', 'hiee', 'hie', 'hai', 'hey',
+        'hello', 'helo', 'namaste', 'namaskar', 'start', 'menu',
+        'restart', '0', 'నమస్తే', 'నమస్కారం'
+    ];
+    const isGreeting = GREETINGS.some(g =>
+        text === g ||
+        text.startsWith(g + ' ') ||
+        text.startsWith(g + '!') ||
+        text.startsWith(g + ',')
+    );
+    if (isGreeting) {
+        CONVERSATION_STATES[phoneKey] = { step: 'SELECT_LANGUAGE', data: {} };
+        return getLanguageMenu();
+    }
+
+    // ── 7. PARTNER ONBOARDING FLOW TRIGGER ───────────────────────────────────
+    // Checked BEFORE no-state fallback so "join"/"partner" works for new users too
     const PARTNER_KEYWORDS = ['partner', 'partnership', 'join', 'become a partner', 'భాగస్వామ్యం', 'doctor join', 'nurse join'];
     if (PARTNER_KEYWORDS.some(kw => text === kw || text.includes(kw))) {
         CONVERSATION_STATES[phoneKey] = { step: 'PARTNER_SELECT_PROFESSION', lang: 'en', data: {} };
         return getPartnerProfessionMenu();
     }
 
-    // ── 7. GREETING & CONVERSATION INITIALIZATION ─────────────────────────────
-    const GREETINGS = ['hi', 'hii', 'hiii', 'hello', 'namaste', 'start', 'menu', 'restart', '0', 'నమస్తే', 'నమస్కారం'];
-    const isGreeting = GREETINGS.some(g => text === g || text.startsWith(g + ' ') || text.startsWith(g + '!'));
-
-    if (isGreeting || !CONVERSATION_STATES[phoneKey]) {
+    // ── 8. NO STATE — SHOW LANGUAGE MENU ─────────────────────────────────────
+    if (!CONVERSATION_STATES[phoneKey]) {
         CONVERSATION_STATES[phoneKey] = { step: 'SELECT_LANGUAGE', data: {} };
         return getLanguageMenu();
     }
+
 
     const state = CONVERSATION_STATES[phoneKey];
     const isTelugu = state.lang === 'te';

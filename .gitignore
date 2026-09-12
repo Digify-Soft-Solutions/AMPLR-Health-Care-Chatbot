@@ -8,3 +8,5 @@ dist
 read_docs.py
 parsed_bot_docs.txt
 test-supabase.js
+scripts/run-tests.mjs
+scripts/test-suite.js
