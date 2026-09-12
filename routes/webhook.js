@@ -111,6 +111,11 @@ router.post('/', async (req, res) => {
                 payloadData = message.interactive.button_reply.id;
                 messageText = message.interactive.button_reply.title;
             }
+        } else if (message.type === 'location' && message.location) {
+            const lat = message.location.latitude;
+            const lng = message.location.longitude;
+            const locName = message.location.name || message.location.address || '';
+            messageText = `📍 GPS Location: https://maps.google.com/?q=${lat},${lng}${locName ? ` (${locName})` : ''}`;
         } else {
             messageText = message.text?.body || '';
         }
@@ -168,13 +173,16 @@ router.post('/', async (req, res) => {
             messageText = altSelectedId;
         }
 
-        const locObj = target.location || rawBody.location;
+        const locObj = target.location || rawBody.location || target.location_data || rawBody.location_data;
         const rawLat = target.latitude || rawBody.latitude || target.lat || rawBody.lat || locObj?.latitude || locObj?.lat;
         const rawLng = target.longitude || rawBody.longitude || target.lng || rawBody.lng || locObj?.longitude || locObj?.lng || locObj?.long;
         const rawLocAddr = target.address || rawBody.address || locObj?.address || locObj?.name || '';
+        const rawMediaUrl = target.media_url || rawBody.media_url || target.url || rawBody.url || '';
 
         if (rawLat && rawLng) {
             messageText = `📍 GPS Location: https://maps.google.com/?q=${rawLat},${rawLng}${rawLocAddr ? ` (${rawLocAddr})` : ''}`;
+        } else if (rawMediaUrl && (rawMediaUrl.includes('map') || rawMediaUrl.includes('loc') || rawMediaUrl.includes('google'))) {
+            messageText = `📍 GPS Location: ${rawMediaUrl}`;
         } else if (target.type === 'location' || rawBody.type === 'location' || (typeof target.text === 'object' && target.text?.body === '[LOCATION MESSAGE]') || (typeof rawBody.text === 'object' && rawBody.text?.body === '[LOCATION MESSAGE]')) {
             messageText = '📍 Shared WhatsApp Location Pin';
         }

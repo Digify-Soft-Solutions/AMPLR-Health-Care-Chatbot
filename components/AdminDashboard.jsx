@@ -310,13 +310,56 @@ export default function AdminDashboard() {
                                             <div className="text-xs text-slate-600 font-medium mt-0.5">
                                                 👤 {b.patientName} • <span className="font-mono text-slate-500">+{b.patientPhone || b.phone || '91'}</span>
                                             </div>
-                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5 flex flex-wrap items-center gap-1">
-                                                <span>🏠 {b.address?.replace(/\[LOCATION MESSAGE\]/g, '📍 Shared Location Pin') || b.location || 'Address on file'}</span>
-                                                {b.landmark && <span className="text-slate-400">({b.landmark})</span>}
-                                            </div>
-                                            <div className="text-[11px] text-teal-700 font-mono font-semibold mt-0.5">
-                                                📮 PIN: {b.pincode || (b.address?.match(/\b[1-9][0-9]{5}\b/)?.[0]) || 'N/A'}
-                                            </div>
+                                            {(() => {
+                                                const rawAddr = b.address || b.location || '';
+                                                const mapMatch = rawAddr.match(/https?:\/\/(?:maps\.google\.com|goo\.gl|maps\.app\.goo\.gl)[^\s)]+/i);
+                                                const gpsUrl = mapMatch ? mapMatch[0] : null;
+                                                const hasPinMention = rawAddr.includes('Location Pin') || rawAddr.includes('[LOCATION MESSAGE]');
+                                                const cleanTextAddr = rawAddr.replace(/https?:\/\/[^\s)]+/g, '').replace(/\[LOCATION MESSAGE\]/g, '📍 WhatsApp Location Pin').trim();
+                                                const searchLoc = (b.landmark ? b.landmark + ', ' : '') + (b.pincode || cleanTextAddr.replace(/📍.*Pin,?\s*/i, '') || '');
+
+                                                return (
+                                                    <div className="mt-1 space-y-1">
+                                                        <div className="text-[11px] text-slate-600 font-medium flex flex-wrap items-center gap-1">
+                                                            <span>🏠 {cleanTextAddr || 'Address on file'}</span>
+                                                            {b.landmark && !cleanTextAddr.includes(b.landmark) && (
+                                                                <span className="text-slate-400">({b.landmark})</span>
+                                                            )}
+                                                            {hasPinMention && (
+                                                                <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-300 inline-flex items-center gap-0.5">
+                                                                    📍 Location Pin Attached
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                                            <span className="text-[11px] text-teal-700 font-mono font-semibold">
+                                                                📮 PIN: {b.pincode || (rawAddr.match(/\b[1-9][0-9]{5}\b/)?.[0]) || 'N/A'}
+                                                            </span>
+
+                                                            {gpsUrl ? (
+                                                                <a
+                                                                    href={gpsUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md transition shadow-2xs"
+                                                                >
+                                                                    📍 Open GPS Pin in Google Maps ↗
+                                                                </a>
+                                                            ) : searchLoc ? (
+                                                                <a
+                                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchLoc)}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-md transition"
+                                                                >
+                                                                    🗺️ View on Google Maps ↗
+                                                                </a>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-4 text-xs">
                                             <div className="font-bold text-slate-800 flex items-center gap-1">
