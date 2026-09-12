@@ -156,11 +156,12 @@ export async function getInquiriesFromDB() {
             .limit(100);
 
         if (error) throw error;
-        if (data && data.length > 0) return data;
+        if (Array.isArray(data)) return data;
     } catch (err) {
-        console.warn('[Supabase getInquiries error]:', err.message);
+        console.warn('[Supabase getInquiries error, using fallback]:', err.message);
+        return getLiveMessages();
     }
-    return getLiveMessages();
+    return [];
 }
 
 export async function addInquiryToDB(phone, userMessage, botReplyText, senderName = null) {
@@ -200,7 +201,7 @@ export async function getBookingsFromDB() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
             return data.map(b => ({
                 id: b.id,
                 patientName: b.patient_name,
@@ -221,9 +222,10 @@ export async function getBookingsFromDB() {
             }));
         }
     } catch (err) {
-        console.warn('[Supabase getBookings error]:', err.message);
+        console.warn('[Supabase getBookings error, using fallback]:', err.message);
+        return getBookings();
     }
-    return getBookings();
+    return [];
 }
 
 export async function addBookingToDB(bookingData) {
