@@ -650,11 +650,26 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- PRICING CATALOG VIEW ---
         case 'SELECT_PRICING_CATEGORY': {
-            if (text === '1') return getDoctorSpecialtiesMenu(isTelugu);
-            if (text === '2') return getNursingProceduresMenu(isTelugu);
-            if (text === '3') return getAmbulanceMenu(isTelugu);
-            state.step = 'MAIN_MENU';
-            return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            if (text === '1') {
+                state.data.selectedService = 'Doctor Consultation';
+                state.step = 'SELECT_DOCTOR_SPECIALTY';
+                return getDoctorSpecialtiesMenu(isTelugu);
+            }
+            if (text === '2') {
+                state.data.selectedService = 'Nursing Services at Home';
+                state.step = 'SELECT_NURSING_PROCEDURE';
+                return getNursingProceduresMenu(isTelugu);
+            }
+            if (text === '3') {
+                state.data.selectedService = 'Ambulance Services';
+                state.step = 'SELECT_AMBULANCE_TYPE';
+                return getAmbulanceMenu(isTelugu);
+            }
+            if (text === '0' || text === 'menu') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+            return isTelugu ? getPricingMenuTelugu() : getPricingMenuEnglish();
         }
 
         default: {
