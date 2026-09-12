@@ -36,16 +36,29 @@ router.put('/bookings/:id', async (req, res) => {
         if (updated) {
             const patientPhone = updated.patientPhone || updated.phone;
 
-            // 1. Staff Assigned Alert (Sheet 3)
+            // 1. Staff Assigned Alert
             if (staffId && updated.assignedStaff && patientPhone) {
                 const staffAlert = `🏥 *AMPLR HEALTH - Specialist Assigned!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour healthcare specialist has been successfully allocated:\n\n👤 *Specialist*: *${updated.assignedStaff.name}*\n📞 *Direct Phone*: *${updated.assignedStaff.phone}*\n🩺 *Service*: ${updated.serviceName}\n📅 *Appointment*: ${updated.date} (${updated.slot})\n\nOur team member will contact you shortly and arrive at your scheduled time. For queries, call our 24/7 Helpline: *7997888448*.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
-                sendWhatsAppMessage(patientPhone, staffAlert).catch(e => console.warn('[Staff Alert Error]:', e.message));
+                console.log(`[Staff Assigned Alert] 📲 Sending WhatsApp alert to ${patientPhone} for ${updated.assignedStaff.name}...`);
+                sendWhatsAppMessage(patientPhone, staffAlert).then(() => {
+                    console.log(`[Staff Assigned Alert] ✅ Delivered successfully to ${patientPhone}`);
+                }).catch(e => console.warn('[Staff Alert Error]:', e.message));
             }
 
-            // 2. Post-Service Feedback Loop Trigger (Docx)
+            // 2. On The Way Alert
+            if (status === 'On the way' && patientPhone) {
+                const staffName = updated.assignedStaff ? updated.assignedStaff.name : 'Healthcare Specialist';
+                const staffPhone = updated.assignedStaff ? updated.assignedStaff.phone : '7997888448';
+                const onTheWayAlert = `🚗 *AMPLR HEALTH - Specialist is On The Way!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour assigned specialist *${staffName}* has departed and is now on the way to your doorstep for *${updated.serviceName}*.\n\n📞 Specialist Phone: *${staffPhone}*\n⏰ Appointment Slot: *${updated.slot || 'Scheduled'}*\n\nPlease be available at your location.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
+                console.log(`[On The Way Alert] 📲 Sending WhatsApp alert to ${patientPhone}...`);
+                sendWhatsAppMessage(patientPhone, onTheWayAlert).catch(e => console.warn('[On The Way Alert Error]:', e.message));
+            }
+
+            // 3. Post-Service Feedback Loop Trigger
             if (status === 'Completed' && patientPhone) {
                 const staffName = updated.assignedStaff ? updated.assignedStaff.name : 'our specialist';
                 const feedbackPrompt = `🏥 *AMPLR HEALTH - Service Completed* ✅\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour appointment for *${updated.serviceName}* has been completed!\n\nHow was your experience with *${staffName}* today?\n\n1️⃣ 😊 *Happy* – Great service, highly satisfied!\n2️⃣ 🙁 *Unhappy* – Need improvement / feedback\n\n----------------------------------------\n📲 *Reply with 1 or 2 to share your feedback.*`;
+                console.log(`[Service Completed Alert] 📲 Sending feedback survey to ${patientPhone}...`);
                 sendWhatsAppMessage(patientPhone, feedbackPrompt).catch(e => console.warn('[Feedback Prompt Error]:', e.message));
 
                 const cleanPhone = (patientPhone || '').toString().replace(/\D/g, '');

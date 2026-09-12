@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { DEFAULT_SERVICES, STAFF_POOL, getBookings, getLiveMessages, BOOKINGS, LIVE_WHATSAPP_MESSAGES } from '../data/mockDatabase.js';
+import { DEFAULT_SERVICES, STAFF_POOL, getBookings, getLiveMessages, BOOKINGS, LIVE_WHATSAPP_MESSAGES, updateBookingStatus } from '../data/mockDatabase.js';
 
 /**
  * 🏥 AMPLR Health - Supabase Realtime Database Service
@@ -298,6 +298,11 @@ export async function addBookingToDB(bookingData) {
 }
 
 export async function updateBookingInDB(id, newStatus, staffId = null) {
+    let localUpdated = null;
+    try {
+        localUpdated = updateBookingStatus(id, newStatus, staffId);
+    } catch (e) {}
+
     try {
         const updatePayload = {};
         if (newStatus) updatePayload.status = newStatus;
@@ -322,6 +327,7 @@ export async function updateBookingInDB(id, newStatus, staffId = null) {
             id: data.id,
             patientName: data.patient_name,
             patientPhone: data.patient_phone,
+            phone: data.patient_phone,
             serviceId: data.service_id,
             serviceName: data.service_name,
             serviceCode: data.service_code,
@@ -335,8 +341,8 @@ export async function updateBookingInDB(id, newStatus, staffId = null) {
             createdAt: data.created_at
         };
     } catch (err) {
-        console.error('[Supabase updateBooking error]:', err.message);
-        return null;
+        console.error('[Supabase updateBooking error, using fallback]:', err.message);
+        return localUpdated;
     }
 }
 
