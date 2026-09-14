@@ -8,5 +8,9 @@ dist
 read_docs.py
 parsed_bot_docs.txt
 test-supabase.js
-scripts/run-tests.mjs
-scripts/test-suite.js
+scripts/
+
+# Security: GitHub Personal Access Token
+personal_access_token.txt
+personal-access-token.txt
+
