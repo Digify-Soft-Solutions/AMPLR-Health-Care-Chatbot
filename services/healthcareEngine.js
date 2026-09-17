@@ -871,6 +871,54 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             return isTelugu ? getPricingMenuTelugu() : getPricingMenuEnglish();
         }
 
+        // --- PARTNER ONBOARDING FLOW ---
+        case 'PARTNER_SELECT_PROFESSION': {
+            if (text === '0' || text === 'menu') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+
+            const professionMap = {
+                '1': 'Lab Technician / Phlebotomist',
+                '2': 'Nursing Professional (GNM/B.Sc)',
+                '3': 'Caregiver / Caretaker',
+                '4': 'Physiotherapist (BPT/MPT)',
+                '5': 'ECG Technician',
+                '6': 'Ambulance Partner / Driver',
+                '7': 'Doctor Consultation Specialist',
+                '8': 'Hospital / Clinic Institutional Partner'
+            };
+
+            const selectedProf = professionMap[text] || text;
+            state.data.partnerProfession = selectedProf;
+            state.step = 'PARTNER_CAPTURE_DETAILS';
+
+            return {
+                type: 'TEXT',
+                text: `🤝 *AMPLR HEALTH - PARTNER REGISTRATION*\n----------------------------------------\nCategory: *${selectedProf}*\n\nPlease reply with your details in this format:\n\n*Full Name, Years of Experience, City/Area*\n(e.g., *Dr. Rajesh Kumar, 6 Years, Jubilee Hills Hyderabad*)`
+            };
+        }
+
+        case 'PARTNER_CAPTURE_DETAILS': {
+            if (text === '0' || text === 'menu') {
+                state.step = 'MAIN_MENU';
+                return isTelugu ? getMainMenuTelugu() : getMainMenuEnglish();
+            }
+
+            const partnerId = `PTR-${Math.floor(10000 + Math.random() * 90000)}`;
+            const details = rawText;
+            const profession = state.data.partnerProfession || 'Healthcare Specialist';
+
+            state.step = 'MAIN_MENU';
+            return {
+                type: 'TEXT',
+                status: `🤝 Partner Application: ${profession}`,
+                customUserMessage: `Partner Application: ${profession} (${details})`,
+                category: 'PARTNER_APPLICATION',
+                text: `✅ *APPLICATION SUBMITTED SUCCESSFULLY!* 🎉\n----------------------------------------\n📋 *Partner ID*: *${partnerId}*\n🩺 *Profession*: ${profession}\n📝 *Details*: ${details}\n📞 *Registered Phone*: +${phoneKey}\n\nOur Provider Onboarding Team will review your credentials and contact you within 24 hours for document verification and platform onboarding.\n\nHelpline: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
+            };
+        }
+
         default: {
             CONVERSATION_STATES[phoneKey] = { step: 'MAIN_MENU', lang: state.lang || 'en', data: {} };
             return state.lang === 'te' ? getMainMenuTelugu() : getMainMenuEnglish();

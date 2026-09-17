@@ -94,15 +94,28 @@ router.delete('/bookings/:id', async (req, res) => {
 router.get('/messages', async (req, res) => {
     try {
         const inquiries = await getInquiriesFromDB();
-        const formatted = inquiries.map(inq => ({
-            id: inq.id,
-            phone: inq.phone,
-            senderName: inq.sender_name,
-            userMessage: inq.user_message,
-            botReplyText: inq.bot_reply_text,
-            timestamp: new Date(inq.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: inq.status || 'Auto Replied'
-        }));
+        const formatted = inquiries.map(inq => {
+            const msg = (inq.user_message || '').toLowerCase();
+            const status = (inq.status || '').toLowerCase();
+            const name = (inq.sender_name || '').toLowerCase();
+            const isPartner = (inq.id && inq.id.startsWith('PTR-')) ||
+                status.includes('partner') ||
+                name.includes('[partner]') ||
+                msg.startsWith('partner application') ||
+                msg.includes('partner onboarding') ||
+                msg.includes('partner registration');
+
+            return {
+                id: inq.id,
+                phone: inq.phone,
+                senderName: inq.sender_name,
+                userMessage: inq.user_message,
+                botReplyText: inq.bot_reply_text,
+                timestamp: new Date(inq.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                status: inq.status || 'Auto Replied',
+                leadType: isPartner ? 'PARTNER' : 'CUSTOMER'
+            };
+        });
         res.json({ messages: formatted });
     } catch (err) {
         res.status(500).json({ error: err.message });

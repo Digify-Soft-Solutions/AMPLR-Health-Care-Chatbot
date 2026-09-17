@@ -18,6 +18,7 @@ export default function AdminDashboard() {
     const [emergencyAlerts, setEmergencyAlerts] = useState([]);
     const [messages, setMessages] = useState([]);
     const [filterStatus, setFilterStatus] = useState('ALL');
+    const [inboundTab, setInboundTab] = useState('PATIENT'); // 'PATIENT' | 'PARTNER' | 'ALL'
     const [loading, setLoading] = useState(false);
     const [lastUpdated, setLastUpdated] = useState('');
 
@@ -113,6 +114,14 @@ export default function AdminDashboard() {
     const filteredBookings = filterStatus === 'ALL'
         ? bookings
         : bookings.filter(b => b.status === filterStatus);
+
+    const patientMessages = messages.filter(m => m.leadType !== 'PARTNER');
+    const partnerMessages = messages.filter(m => m.leadType === 'PARTNER');
+    const displayedMessages = inboundTab === 'PATIENT'
+        ? patientMessages
+        : inboundTab === 'PARTNER'
+            ? partnerMessages
+            : messages;
 
     const totalEnquiriesCount = stats?.totalEnquiries || messages.length;
 
@@ -226,9 +235,11 @@ export default function AdminDashboard() {
                     <div className="text-3xl font-black text-slate-900 mt-2 tracking-tight">
                         {totalEnquiriesCount}
                     </div>
-                    <div className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                    <div className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Real-time Inbound Leads
+                        <span>{patientMessages.length} Patients</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-indigo-600 font-bold">{partnerMessages.length} Partners</span>
                     </div>
                 </div>
 
@@ -325,13 +336,13 @@ export default function AdminDashboard() {
                     <table className="w-full text-left text-xs text-slate-700">
                         <thead className="text-[11px] font-bold uppercase bg-slate-50/90 text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="p-4">Booking ID</th>
-                                <th className="p-4">Service & Patient Details</th>
-                                <th className="p-4">Date & Slot</th>
-                                <th className="p-4">Assigned Specialist</th>
-                                <th className="p-4">Pipeline Status</th>
-                                <th className="p-4">WhatsApp Reminders</th>
-                                <th className="p-4 text-right">PDF Invoice</th>
+                                <th className="py-3 px-4 w-32">Booking ID</th>
+                                <th className="py-3 px-4 min-w-[280px]">Service & Patient Details</th>
+                                <th className="py-3 px-4 w-44">Date & Slot</th>
+                                <th className="py-3 px-4 w-56">Assigned Specialist</th>
+                                <th className="py-3 px-4 w-40">Pipeline Status</th>
+                                <th className="py-3 px-4 w-32">WhatsApp Reminders</th>
+                                <th className="py-3 px-4 w-28 text-right">Invoice & Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -352,118 +363,157 @@ export default function AdminDashboard() {
                             ) : (
                                 filteredBookings.map((b) => (
                                     <tr key={b.id} className="hover:bg-slate-50/70 transition">
-                                        <td className="p-4 font-mono font-bold text-teal-700 text-sm">
-                                            {b.id}
+                                        <td className="py-3 px-4 whitespace-nowrap align-top">
+                                            <div className="font-mono font-black text-xs text-teal-900 bg-teal-50 border border-teal-200/90 px-2.5 py-1 rounded-md tracking-wide whitespace-nowrap shadow-2xs inline-block">
+                                                {b.id}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 font-semibold mt-1 ml-0.5">
+                                                Home Visit
+                                            </div>
                                         </td>
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                                                <span>{b.serviceName}</span>
+                                        <td className="py-3 px-4 align-top">
+                                            <div className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
+                                                <span>{(b.serviceName || 'Healthcare Service').replace(/\s*\([₹\d\s,/-]+\)/g, '').trim()}</span>
                                                 {b.amount && (
-                                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-emerald-200 shadow-2xs">
                                                         ₹{b.amount}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-slate-600 font-medium mt-0.5">
-                                                👤 {b.patientName} • <span className="font-mono text-slate-500">+{b.patientPhone || b.phone || '91'}</span>
+                                            <div className="text-xs text-slate-600 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                <span>👤 {(b.patientName || 'Patient').replace(/\s+and\s+(\d{1,3})/i, ' (Age: $1)').trim()}</span>
+                                                <span className="text-slate-300">•</span>
+                                                <span className="font-mono text-slate-500">
+                                                    +{(b.patientPhone || b.phone || '91').toString().replace(/\D/g, '')}
+                                                </span>
                                             </div>
                                             {(() => {
                                                 const rawAddr = b.address || b.location || '';
                                                 const mapMatch = rawAddr.match(/https?:\/\/(?:maps\.google\.com|goo\.gl|maps\.app\.goo\.gl)[^\s)]+/i);
                                                 const gpsUrl = mapMatch ? mapMatch[0] : null;
                                                 const hasPinMention = rawAddr.includes('Location Pin') || rawAddr.includes('[LOCATION MESSAGE]');
-                                                const cleanTextAddr = rawAddr.replace(/https?:\/\/[^\s)]+/g, '').replace(/\[LOCATION MESSAGE\]/g, '📍 WhatsApp Location Pin').trim();
-                                                const searchLoc = (b.landmark ? b.landmark + ', ' : '') + (b.pincode || cleanTextAddr.replace(/📍.*Pin,?\s*/i, '') || '');
+
+                                                let cleanTextAddr = rawAddr
+                                                    .replace(/^[+\-\s]+/, '')
+                                                    .replace(/[*_~`]/g, '')
+                                                    .replace(/https?:\/\/[^\s)]+/g, '')
+                                                    .replace(/\[LOCATION MESSAGE\]/g, '')
+                                                    .replace(/\s*Landmark:\s*[^,]+/i, '')
+                                                    .replace(/\s*PIN:\s*\d{6}/i, '')
+                                                    .trim();
+
+                                                const pin = b.pincode || (rawAddr.match(/\b[1-9][0-9]{5}\b/)?.[0]) || null;
+                                                const landmark = b.landmark || (rawAddr.match(/Landmark:\s*([^,*\n]+)/i)?.[1]?.trim()) || null;
+                                                const searchLoc = [cleanTextAddr, landmark, pin].filter(Boolean).join(', ');
+                                                const mapUrl = gpsUrl || (searchLoc ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchLoc)}` : null);
 
                                                 return (
                                                     <div className="mt-1 space-y-1">
-                                                        <div className="text-[11px] text-slate-600 font-medium flex flex-wrap items-center gap-1">
-                                                            <span>🏠 {cleanTextAddr || 'Address on file'}</span>
-                                                            {b.landmark && !cleanTextAddr.includes(b.landmark) && (
-                                                                <span className="text-slate-400">({b.landmark})</span>
-                                                            )}
-                                                            {hasPinMention && (
-                                                                <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-300 inline-flex items-center gap-0.5">
-                                                                    📍 Location Pin Attached
-                                                                </span>
-                                                            )}
+                                                        <div className="text-[11px] text-slate-700 font-medium flex items-start gap-1">
+                                                            <span className="shrink-0 text-slate-400">🏠</span>
+                                                            <span className="line-clamp-2">{cleanTextAddr || 'Doorstep address on file'}</span>
                                                         </div>
 
-                                                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                                                            <span className="text-[11px] text-teal-700 font-mono font-semibold">
-                                                                📮 PIN: {b.pincode || (rawAddr.match(/\b[1-9][0-9]{5}\b/)?.[0]) || 'N/A'}
-                                                            </span>
-
-                                                            {gpsUrl ? (
+                                                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                            {landmark && (
+                                                                <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                                                    Near: {landmark}
+                                                                </span>
+                                                            )}
+                                                            {pin && (
+                                                                <span className="text-[10px] font-mono font-semibold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200/80">
+                                                                    PIN: {pin}
+                                                                </span>
+                                                            )}
+                                                            {hasPinMention && (
+                                                                <span className="bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-200 inline-flex items-center gap-0.5">
+                                                                    📍 GPS Attached
+                                                                </span>
+                                                            )}
+                                                            {mapUrl && (
                                                                 <a
-                                                                    href={gpsUrl}
+                                                                    href={mapUrl}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md transition shadow-2xs"
+                                                                    className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded transition shadow-2xs"
                                                                 >
-                                                                    📍 Open GPS Pin in Google Maps ↗
+                                                                    <span>Maps ↗</span>
                                                                 </a>
-                                                            ) : searchLoc ? (
-                                                                <a
-                                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchLoc)}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-md transition"
-                                                                >
-                                                                    🗺️ View on Google Maps ↗
-                                                                </a>
-                                                            ) : null}
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
                                             })()}
                                         </td>
-                                        <td className="p-4 text-xs">
-                                            <div className="font-bold text-slate-800 flex items-center gap-1">
-                                                <span>📅</span>
+                                        <td className="py-3 px-4 whitespace-nowrap text-xs align-top">
+                                            <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 text-teal-600 shrink-0" />
                                                 <span>{b.date || (b.dateTime ? b.dateTime.split('(')[0].trim() : 'Scheduled')}</span>
                                             </div>
-                                            <div className="text-teal-700 font-mono font-bold mt-1 bg-teal-50 px-2.5 py-0.5 rounded-md inline-block border border-teal-200">
-                                                ⏰ {b.slot || (b.dateTime && b.dateTime.includes('(') ? b.dateTime.split('(')[1].replace(')', '').trim() : 'IST Slot')}
+                                            <div className="mt-1 inline-flex items-center gap-1 bg-slate-100 text-slate-700 font-mono font-semibold text-[11px] px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs">
+                                                <Clock className="w-3 h-3 text-teal-600" />
+                                                <span>{b.slot || (b.dateTime && b.dateTime.includes('(') ? b.dateTime.split('(')[1].replace(')', '').trim() : 'Scheduled Slot')}</span>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-xs">
+                                        <td className="py-3 px-4 min-w-[210px] align-top">
                                             {b.assignedStaff ? (
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="bg-emerald-50/80 border border-emerald-200/80 p-2 rounded-xl flex-1">
-                                                        <div className="font-bold text-emerald-800">{b.assignedStaff.name}</div>
-                                                        <div className="text-[10px] text-emerald-600 font-mono">+{b.assignedStaff.phone}</div>
+                                                <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-xl p-2 shadow-2xs">
+                                                    <div className="flex items-center justify-between gap-1.5">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs">
+                                                                {b.assignedStaff.name.charAt(0) || '🩺'}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="font-bold text-slate-900 text-xs truncate">
+                                                                    {b.assignedStaff.name}
+                                                                </div>
+                                                                <div className="text-[10px] text-emerald-700 font-mono font-medium">
+                                                                    +{(b.assignedStaff.phone || '').toString().replace(/^\++/, '')}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="shrink-0">
+                                                            <select
+                                                                onChange={(e) => handleUpdateStatus(b.id, 'Assigned', e.target.value)}
+                                                                defaultValue=""
+                                                                title="Reassign specialist"
+                                                                className="bg-white hover:bg-slate-50 text-slate-600 text-[10px] font-bold border border-slate-300 rounded-lg px-2 py-1 cursor-pointer transition shadow-2xs focus:outline-none"
+                                                            >
+                                                                <option value="" disabled>Change</option>
+                                                                {staff.map(s => (
+                                                                    <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                    <select
-                                                        onChange={(e) => handleUpdateStatus(b.id, 'Assigned', e.target.value)}
-                                                        defaultValue=""
-                                                        title="Reassign specialist"
-                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 rounded-lg p-1.5 cursor-pointer shadow-2xs"
-                                                    >
-                                                        <option value="" disabled>🔄</option>
-                                                        {staff.map(s => (
-                                                            <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
-                                                        ))}
-                                                    </select>
                                                 </div>
                                             ) : (
                                                 <select
                                                     onChange={(e) => handleUpdateStatus(b.id, 'Assigned', e.target.value)}
                                                     defaultValue=""
-                                                    className="bg-amber-50 text-amber-900 text-xs font-bold border border-amber-300 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer shadow-2xs"
+                                                    className="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 rounded-xl px-2.5 py-1.5 cursor-pointer transition shadow-2xs focus:outline-none"
                                                 >
-                                                    <option value="" disabled>Assign Staff...</option>
+                                                    <option value="" disabled>⚡ Assign Specialist...</option>
                                                     {staff.map(s => (
                                                         <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
                                                     ))}
                                                 </select>
                                             )}
                                         </td>
-                                        <td className="p-4">
+                                        <td className="py-3 px-4 whitespace-nowrap align-top">
                                             <select
                                                 value={b.status}
                                                 onChange={(e) => handleUpdateStatus(b.id, e.target.value)}
-                                                className="bg-white border border-slate-300 text-slate-800 font-bold text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+                                                className={`text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none shadow-2xs cursor-pointer border transition ${
+                                                    b.status === 'Completed'
+                                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                                        : b.status === 'Assigned'
+                                                            ? 'bg-teal-50 text-teal-800 border-teal-300'
+                                                            : b.status === 'On the way'
+                                                                ? 'bg-sky-50 text-sky-800 border-sky-300'
+                                                                : 'bg-amber-50 text-amber-800 border-amber-300'
+                                                }`}
                                             >
                                                 <option value="Pending Assignment">🟡 Pending Assignment</option>
                                                 <option value="Assigned">🟢 Assigned</option>
@@ -472,50 +522,46 @@ export default function AdminDashboard() {
                                                 <option value="Completed">✅ Completed</option>
                                             </select>
                                         </td>
-                                        <td className="p-4 text-xs">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    {b.reminder24hSent ? (
-                                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                                                            ✓ 24h Sent
-                                                        </span>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleSendReminder(b.id, '24h')}
-                                                            title="Send 24-Hour WhatsApp Reminder"
-                                                            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
-                                                        >
-                                                            ⏰ Send 24h
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    {b.reminder2hSent ? (
-                                                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                                                            ✓ 2h Sent
-                                                        </span>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleSendReminder(b.id, '2h')}
-                                                            title="Send 2-Hour WhatsApp Reminder"
-                                                            className="inline-flex items-center gap-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
-                                                        >
-                                                            🚗 Send 2h
-                                                        </button>
-                                                    )}
-                                                </div>
+                                        <td className="py-3 px-4 whitespace-nowrap text-xs align-top">
+                                            <div className="flex flex-col gap-1">
+                                                {b.reminder24hSent ? (
+                                                    <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                                        ✓ 24h Sent
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleSendReminder(b.id, '24h')}
+                                                        title="Send 24-Hour WhatsApp Reminder"
+                                                        className="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
+                                                    >
+                                                        ⏰ Send 24h
+                                                    </button>
+                                                )}
+                                                {b.reminder2hSent ? (
+                                                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200/80 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                                        ✓ 2h Sent
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleSendReminder(b.id, '2h')}
+                                                        title="Send 2-Hour WhatsApp Reminder"
+                                                        className="inline-flex items-center justify-center gap-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
+                                                    >
+                                                        🚗 Send 2h
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
+                                        <td className="py-3 px-4 whitespace-nowrap text-right align-top">
+                                            <div className="flex items-center justify-end gap-1.5">
                                                 <a
                                                     href={`${API_BASE}/api/bookings/${b.id}/invoice`}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 transition shadow-2xs"
+                                                    className="inline-flex items-center space-x-1 bg-slate-100 hover:bg-slate-200 text-teal-800 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-300 transition shadow-2xs"
                                                 >
                                                     <FileText className="w-3.5 h-3.5 text-teal-600" />
-                                                    <span>Preview PDF</span>
+                                                    <span>PDF</span>
                                                 </a>
                                                 <button
                                                     onClick={() => handleDeleteBooking(b.id)}
@@ -534,26 +580,76 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* LIVE WHATSAPP INQUIRIES & PARTNER LEADS */}
+            {/* WHATSAPP INBOUND COMMUNICATIONS & LEADS PIPELINE */}
             <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden mt-6">
-                <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-50/70 to-white">
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-50/70 to-white">
                     <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
-                            <MessageCircle className="w-5 h-5" />
+                        <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-md transition ${
+                            inboundTab === 'PARTNER' 
+                                ? 'bg-indigo-600 shadow-indigo-600/20' 
+                                : 'bg-emerald-600 shadow-emerald-600/20'
+                        }`}>
+                            {inboundTab === 'PARTNER' ? <Users className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
                                 <h2 className="font-bold text-slate-900 text-lg sm:text-xl">
-                                    WhatsApp Inquiries & Partner Leads
+                                    {inboundTab === 'PATIENT' && 'WhatsApp Patient Inquiries & Booking Leads'}
+                                    {inboundTab === 'PARTNER' && 'Healthcare Partner Onboarding Leads'}
+                                    {inboundTab === 'ALL' && 'All WhatsApp Inbound Communications'}
                                 </h2>
-                                <span className="bg-emerald-100 text-emerald-800 text-[11px] px-2 py-0.5 rounded-full font-bold">
-                                    {messages.length} Active Leads
+                                <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${
+                                    inboundTab === 'PARTNER'
+                                        ? 'bg-indigo-100 text-indigo-800'
+                                        : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                    {displayedMessages.length} Leads
                                 </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5">
-                                Live prospective clients, healthcare queries, and onboarding partner applications
+                                {inboundTab === 'PATIENT' && 'Live prospective patients, consultation queries, and service booking requests'}
+                                {inboundTab === 'PARTNER' && 'Doctors, Nurses, Caregivers, Phlebotomists & Clinics registered via WhatsApp'}
+                                {inboundTab === 'ALL' && 'Combined feed of patient inquiries, service requests, and partner applications'}
                             </p>
                         </div>
+                    </div>
+
+                    {/* Tab Selector Buttons */}
+                    <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 shrink-0">
+                        <button
+                            onClick={() => setInboundTab('PATIENT')}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                                inboundTab === 'PATIENT'
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Patient Inquiries ({patientMessages.length})</span>
+                        </button>
+
+                        <button
+                            onClick={() => setInboundTab('PARTNER')}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                                inboundTab === 'PARTNER'
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Partner Leads ({partnerMessages.length})</span>
+                        </button>
+
+                        <button
+                            onClick={() => setInboundTab('ALL')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                                inboundTab === 'ALL'
+                                    ? 'bg-slate-900 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                        >
+                            <span>All ({messages.length})</span>
+                        </button>
                     </div>
                 </div>
 
@@ -561,74 +657,92 @@ export default function AdminDashboard() {
                     <table className="w-full text-left text-xs text-slate-700">
                         <thead className="text-[11px] font-bold uppercase bg-slate-50/90 text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="p-4">Inquiry / Lead ID</th>
-                                <th className="p-4">Sender / Applicant</th>
-                                <th className="p-4">Category & Status</th>
-                                <th className="p-4">Latest Interaction / Request</th>
-                                <th className="p-4">Time</th>
-                                <th className="p-4 text-right">Quick Contact</th>
+                                <th className="py-3 px-4 w-32">
+                                    {inboundTab === 'PARTNER' ? 'Partner ID' : 'Inquiry ID'}
+                                </th>
+                                <th className="py-3 px-4 w-48">
+                                    {inboundTab === 'PARTNER' ? 'Healthcare Applicant' : 'Patient / Sender'}
+                                </th>
+                                <th className="py-3 px-4 w-44">
+                                    {inboundTab === 'PARTNER' ? 'Profession & Specialty' : 'Status / Stage'}
+                                </th>
+                                <th className="py-3 px-4">
+                                    {inboundTab === 'PARTNER' ? 'Application Details & Experience' : 'Latest Interaction / Request'}
+                                </th>
+                                <th className="py-3 px-4 w-28">Time</th>
+                                <th className="py-3 px-4 w-32 text-right">Quick Contact</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {messages.length === 0 ? (
+                            {displayedMessages.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="p-12 text-center text-slate-400">
                                         <div className="flex flex-col items-center justify-center space-y-2">
                                             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                                <MessageSquare className="w-6 h-6" />
+                                                {inboundTab === 'PARTNER' ? <Users className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
                                             </div>
-                                            <p className="font-bold text-slate-700 text-sm">No WhatsApp Inquiries Yet</p>
+                                            <p className="font-bold text-slate-700 text-sm">
+                                                {inboundTab === 'PARTNER'
+                                                    ? 'No Partner Applications Yet'
+                                                    : 'No WhatsApp Patient Inquiries Yet'}
+                                            </p>
                                             <p className="text-xs text-slate-400 max-w-sm">
-                                                When patients or partners message the WhatsApp bot, their unique lead profile and application ID appear here automatically.
+                                                {inboundTab === 'PARTNER'
+                                                    ? 'When doctors, nurses, or caregivers register via option 6 on WhatsApp, their partner applications will appear here.'
+                                                    : 'When patients message the WhatsApp bot for healthcare services or queries, their inquiry appears here.'}
                                             </p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
-                                messages.map((m) => {
-                                    const isPartner = (m.status && m.status.toLowerCase().includes('partner')) || (m.userMessage && m.userMessage.includes('PTR-'));
+                                displayedMessages.map((m) => {
+                                    const isPartner = m.leadType === 'PARTNER';
                                     const isBooking = (m.status && m.status.toLowerCase().includes('booking'));
                                     const cleanPhone = (m.phone || '').toString().replace(/\D/g, '');
 
                                     return (
                                         <tr key={m.id} className="hover:bg-slate-50/70 transition">
-                                            <td className="p-4 font-mono font-bold text-slate-800 text-xs">
-                                                <span className="bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                                <span className={`font-mono font-bold text-xs px-2.5 py-1 rounded-md border ${
+                                                    isPartner 
+                                                        ? 'bg-indigo-50 text-indigo-900 border-indigo-200' 
+                                                        : 'bg-slate-100 text-slate-800 border-slate-200'
+                                                }`}>
                                                     {m.id}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-xs">
+                                            <td className="py-3 px-4 text-xs">
                                                 <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                                    <span>{m.senderName || 'WhatsApp User'}</span>
+                                                    <span>{m.senderName || (isPartner ? 'Partner Applicant' : 'WhatsApp Patient')}</span>
                                                 </div>
                                                 <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                                     +{cleanPhone}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-xs">
+                                            <td className="py-3 px-4 text-xs whitespace-nowrap">
                                                 {isPartner ? (
                                                     <span className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                                                        🤝 {m.status}
+                                                        🤝 {m.status || 'Partner Applicant'}
                                                     </span>
                                                 ) : isBooking ? (
-                                                    <span className="inline-flex items-center gap-1 bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                                    <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-2xs">
                                                         ✅ {m.status}
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                                                        💬 {m.status || 'Active Lead'}
+                                                    <span className="inline-flex items-center gap-1 bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                                        💬 {m.status || 'Active Inquiry'}
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-4 text-xs max-w-xs">
+                                            <td className="py-3 px-4 text-xs max-w-xs">
                                                 <div className="font-medium text-slate-800 truncate" title={m.userMessage}>
                                                     {m.userMessage}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-xs text-slate-500 font-mono">
+                                            <td className="py-3 px-4 text-xs text-slate-500 font-mono whitespace-nowrap">
                                                 {m.timestamp || 'Just now'}
                                             </td>
-                                            <td className="p-4 text-right">
+                                            <td className="py-3 px-4 text-right whitespace-nowrap">
                                                 <a
                                                     href={`https://wa.me/${cleanPhone}`}
                                                     target="_blank"
