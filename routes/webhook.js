@@ -243,7 +243,13 @@ router.post('/', async (req, res) => {
 
     // ── LOG TO DB (Safely in background) ──────────────────────────────────────
     try {
-        addLiveWhatsAppMessage(senderPhone, messageText || payloadData || 'Selection', botResponse.text, displayName);
+        const loggedUserMsg = botResponse.customUserMessage || messageText || payloadData || 'Selection';
+        const loggedStatus = botResponse.status || 'Auto Replied (WhatsApp Cloud API)';
+        const loggedDisplayName = botResponse.category === 'PARTNER_APPLICATION'
+            ? (displayName ? `${displayName} [Partner]` : 'Partner Applicant')
+            : displayName;
+
+        addLiveWhatsAppMessage(senderPhone, loggedUserMsg, botResponse.text, loggedDisplayName, loggedStatus);
     } catch (logErr) {
         console.warn('[Webhook Log Warning]:', logErr.message);
     }

@@ -750,6 +750,10 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
                 return {
                     type: 'TEXT',
+                    category: 'CUSTOMER_BOOKING',
+                    bookingId: bookingId,
+                    status: `Booking Confirmed: ${bookingId}`,
+                    customUserMessage: `Booked: ${serviceBooked} [ID: ${bookingId}]`,
                     text: isTelugu
                         ? `✅ *బుకింగ్ విజయవంతంగా నిర్ధారించబడింది!*\n----------------------------------------\n🔖 *బుకింగ్ ID*: *${bookingId}*\n🩺 *సేవ*: ${serviceBooked}\n💵 *రుసుము*: ₹${savedFee}\n👤 *రోగి*: ${savedPatient}\n📅 *సమయం*: ${savedDate} (${savedSlot})\n📍 *చిరునామా*: ${fullLocation}\n\n👨‍⚕️ మా హెల్త్‌కేర్ ప్రొఫెషనల్ త్వరలో మిమ్మల్ని సంప్రదిస్తారు.\n📞 అత్యవసర సహాయం: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH – ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది._`
                         : `✅ *BOOKING CONFIRMED SUCCESSFULLY!*\n----------------------------------------\n🔖 *Booking ID*: *${bookingId}*\n🩺 *Service*: ${serviceBooked}\n💵 *Amount*: ₹${savedFee}\n👤 *Patient*: ${savedPatient}\n📅 *Schedule*: ${savedDate} (${savedSlot})\n📍 *Location*: ${fullLocation}\n\n👨‍⚕️ Our healthcare staff is being assigned and will contact you shortly.\n📞 Official 24/7 Helpline: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home._`
@@ -831,7 +835,12 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 delete CONVERSATION_STATES[phoneKey];
                 return {
                     type: 'TEXT',
-                    text: `🤝 *AMPLR HEALTH - PARTNER ONBOARDING*\n----------------------------------------\n🔖 *Application ID*: *${partnerRefId}*\n🩺 *Profession*: *${partnerObj.name}*\n\nThank you for choosing to become an AMPLR HEALTH healthcare partner! 🏥\n\n👉 *Official Partner Application Form*:\n${partnerObj.url}\n\nPlease click the link above and submit your credentials. Our onboarding team will review your application and contact you for onboarding within 24 hours.\n----------------------------------------\n📞 Partner Desk: *${HELPLINE}*\n↩️ Reply *0* or *Hi* for Main Menu.`
+                    category: 'PARTNER_APPLICATION',
+                    partnerRefId: partnerRefId,
+                    profession: partnerObj.name,
+                    status: `Partner Lead: ${partnerRefId} (${partnerObj.name})`,
+                    customUserMessage: `Partner Application: ${partnerObj.name} [ID: ${partnerRefId}]`,
+                    text: `🤝 *AMPLR HEALTH - PARTNER ONBOARDING*\n----------------------------------------\n🔖 *Application ID*: *${partnerRefId}*\n🩺 *Profession*: *${partnerObj.name}*\n\nThank you for choosing to become an AMPLR HEALTH healthcare partner! 🏥\n\n👉 *Official Partner Application Form*:\n${partnerObj.url}\n\n📝 *Note*: Please save this Application ID (*${partnerRefId}*) for verification or enter it in the form if asked.\n\nOur onboarding team will review your application and contact you for onboarding within 24 hours.\n----------------------------------------\n📞 Partner Desk: *${HELPLINE}*\n↩️ Reply *0* or *Hi* for Main Menu.`
                 };
             }
 

@@ -420,6 +420,120 @@ export default function AdminDashboard() {
                     </table>
                 </div>
             </div>
+
+            {/* LIVE WHATSAPP INQUIRIES & PARTNER LEADS */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden mt-6">
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-50/70 to-white">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
+                            <MessageCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="font-bold text-slate-900 text-lg sm:text-xl">
+                                    WhatsApp Inquiries & Partner Leads
+                                </h2>
+                                <span className="bg-emerald-100 text-emerald-800 text-[11px] px-2 py-0.5 rounded-full font-bold">
+                                    {messages.length} Active Leads
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Live prospective clients, healthcare queries, and onboarding partner applications
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700">
+                        <thead className="text-[11px] font-bold uppercase bg-slate-50/90 text-slate-500 border-b border-slate-200">
+                            <tr>
+                                <th className="p-4">Inquiry / Lead ID</th>
+                                <th className="p-4">Sender / Applicant</th>
+                                <th className="p-4">Category & Status</th>
+                                <th className="p-4">Latest Interaction / Request</th>
+                                <th className="p-4">Time</th>
+                                <th className="p-4 text-right">Quick Contact</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {messages.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="p-12 text-center text-slate-400">
+                                        <div className="flex flex-col items-center justify-center space-y-2">
+                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                                <MessageSquare className="w-6 h-6" />
+                                            </div>
+                                            <p className="font-bold text-slate-700 text-sm">No WhatsApp Inquiries Yet</p>
+                                            <p className="text-xs text-slate-400 max-w-sm">
+                                                When patients or partners message the WhatsApp bot, their unique lead profile and application ID appear here automatically.
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                messages.map((m) => {
+                                    const isPartner = (m.status && m.status.toLowerCase().includes('partner')) || (m.userMessage && m.userMessage.includes('PTR-'));
+                                    const isBooking = (m.status && m.status.toLowerCase().includes('booking'));
+                                    const cleanPhone = (m.phone || '').toString().replace(/\D/g, '');
+
+                                    return (
+                                        <tr key={m.id} className="hover:bg-slate-50/70 transition">
+                                            <td className="p-4 font-mono font-bold text-slate-800 text-xs">
+                                                <span className="bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
+                                                    {m.id}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-xs">
+                                                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                                    <span>{m.senderName || 'WhatsApp User'}</span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                                                    +{cleanPhone}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-xs">
+                                                {isPartner ? (
+                                                    <span className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                                        🤝 {m.status}
+                                                    </span>
+                                                ) : isBooking ? (
+                                                    <span className="inline-flex items-center gap-1 bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                                        ✅ {m.status}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                                        💬 {m.status || 'Active Lead'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-xs max-w-xs">
+                                                <div className="font-medium text-slate-800 truncate" title={m.userMessage}>
+                                                    {m.userMessage}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-xs text-slate-500 font-mono">
+                                                {m.timestamp || 'Just now'}
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <a
+                                                    href={`https://wa.me/${cleanPhone}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-200 transition shadow-2xs"
+                                                >
+                                                    <Send className="w-3 h-3 text-emerald-600" />
+                                                    <span>WhatsApp</span>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }

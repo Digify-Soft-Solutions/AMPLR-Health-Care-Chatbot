@@ -220,7 +220,7 @@ export function deleteService(id) {
     return null;
 }
 
-export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, displayName = null) {
+export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, displayName = null, customStatus = null) {
     const rawDigits = (phone || '').toString().replace(/\D/g, '');
     const cleanPhone = rawDigits.length === 10 ? '91' + rawDigits : (rawDigits || phone || '').toString();
     const formattedName = displayName ? `${displayName} (${cleanPhone})` : `Patient (${cleanPhone || 'WhatsApp User'})`;
@@ -240,6 +240,7 @@ export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, display
         msgRecord.userMessage = userMessage || msgRecord.userMessage;
         msgRecord.botReplyText = replyText;
         msgRecord.timestamp = timeStr;
+        if (customStatus) msgRecord.status = customStatus;
         if (displayName) msgRecord.senderName = formattedName;
         // Move to top of the list as the most recent conversation
         LIVE_WHATSAPP_MESSAGES.splice(existingIndex, 1);
@@ -252,7 +253,7 @@ export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, display
             userMessage: userMessage || 'Message received',
             botReplyText: replyText,
             timestamp: timeStr,
-            status: 'Auto Replied (WhatsApp Cloud API)'
+            status: customStatus || 'Auto Replied (WhatsApp Cloud API)'
         };
         LIVE_WHATSAPP_MESSAGES.unshift(msgRecord);
         if (LIVE_WHATSAPP_MESSAGES.length > 100) {
