@@ -1,35 +1,6 @@
 {
-  "bookings": [
-    {
-      "id": "BK-46649",
-      "patientName": "Test Patient Sharma",
-      "patientPhone": "919876543210",
-      "serviceName": "Nursing Services at Home",
-      "serviceCode": "NURSE",
-      "date": "Tomorrow",
-      "slot": "09:00 AM - 11:00 AM",
-      "address": "Flat 302, Green Valley, Banjara Hills",
-      "amount": 800,
-      "status": "Completed",
-      "paymentStatus": "Pending",
-      "assignedStaff": {
-        "id": "STF-101",
-        "name": "Sister Anitha Sharma",
-        "phone": "+91 98765 43210"
-      },
-      "createdAt": "2026-09-17T05:05:48.078Z",
-      "reminder_24h_sent": true
-    }
-  ],
-  "emergencyAlerts": [
-    {
-      "id": "EMG-510",
-      "timestamp": "2026-09-17T05:05:49.337Z",
-      "status": "Urgent Clinical Escalation",
-      "phone": "919876543210",
-      "triggerKeyword": "UNHAPPY_FEEDBACK_ESCALATION"
-    }
-  ],
+  "bookings": [],
+  "emergencyAlerts": [],
   "liveMessages": [],
   "services": [
     {

@@ -393,3 +393,24 @@ export function addEmergencyAlert(alert) {
     saveDB();
     return newAlert;
 }
+
+export function clearEmergencyAlert(id = null) {
+    if (!id || id === 'all') {
+        EMERGENCY_ALERTS.length = 0;
+    } else {
+        const idx = EMERGENCY_ALERTS.findIndex(a => a.id === id);
+        if (idx !== -1) EMERGENCY_ALERTS.splice(idx, 1);
+    }
+    saveDB();
+    return true;
+}
+
+export function deleteBooking(id) {
+    const idx = BOOKINGS.findIndex(b => b.id === id);
+    if (idx !== -1) {
+        BOOKINGS.splice(idx, 1);
+        saveDB();
+        return true;
+    }
+    return false;
+}

@@ -6,7 +6,7 @@ import {
   ShieldAlert, FileText, Download, Phone, RefreshCw, MessageSquare, Send, 
   CheckCheck, Sparkles, Stethoscope, UserCheck, HeartPulse, FlaskConical, 
   Filter, MessageCircle, ArrowUpRight, Search, ArrowRight, ExternalLink,
-  MapPin, Check
+  MapPin, Check, Trash2
 } from 'lucide-react';
 
 const API_BASE = '';
@@ -85,6 +85,31 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleDismissEmergency = async (id = 'all') => {
+        try {
+            await fetch(`${API_BASE}/api/emergency/clear`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            fetchData();
+        } catch (err) {
+            console.error('Dismiss emergency failed:', err);
+        }
+    };
+
+    const handleDeleteBooking = async (bookingId) => {
+        if (!confirm(`Are you sure you want to permanently delete booking ${bookingId}?`)) return;
+        try {
+            await fetch(`${API_BASE}/api/bookings/${bookingId}`, {
+                method: 'DELETE'
+            });
+            fetchData();
+        } catch (err) {
+            console.error('Delete booking failed:', err);
+        }
+    };
+
     const filteredBookings = filterStatus === 'ALL'
         ? bookings
         : bookings.filter(b => b.status === filterStatus);
@@ -138,9 +163,18 @@ export default function AdminDashboard() {
                                 <h3 className="text-rose-950 font-bold text-sm tracking-wide">
                                     🚨 CLINICAL EMERGENCY NOTICES ({emergencyAlerts.length})
                                 </h3>
-                                <span className="text-[11px] bg-rose-200 text-rose-900 px-2.5 py-0.5 rounded-full font-mono font-bold">
-                                    108 Advisory Triggered
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] bg-rose-200 text-rose-900 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                                        108 Advisory Triggered
+                                    </span>
+                                    <button
+                                        onClick={() => handleDismissEmergency('all')}
+                                        className="text-[11px] bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full font-bold transition cursor-pointer shadow-2xs"
+                                        title="Clear all emergency notices"
+                                    >
+                                        ✕ Dismiss All
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-rose-800 text-xs mt-1">
                                 Patient reported severe clinical keywords. Immediate doctor escalation recommended:
@@ -149,19 +183,28 @@ export default function AdminDashboard() {
                                 {emergencyAlerts.map(alert => (
                                     <div key={alert.id} className="bg-white p-3 rounded-xl border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3">
                                         <div>
-                                            <span className="font-bold text-slate-900 text-sm">{alert.patientName}</span>
+                                            <span className="font-bold text-slate-900 text-sm">{alert.patientName || 'Emergency Patient'}</span>
                                             <span className="text-slate-500 ml-2 font-mono">+{alert.phone}</span>
                                             <span className="text-rose-700 font-semibold ml-2 bg-rose-100 px-2 py-0.5 rounded text-[11px]">
                                                 Triggered: "{alert.triggerKeyword}"
                                             </span>
                                         </div>
-                                        <a
-                                            href={`tel:${alert.phone}`}
-                                            className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg font-bold flex items-center justify-center space-x-1.5 transition shrink-0 shadow-sm"
-                                        >
-                                            <Phone className="w-3.5 h-3.5" />
-                                            <span>Call Patient Immediately</span>
-                                        </a>
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                href={`tel:${alert.phone}`}
+                                                className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg font-bold flex items-center justify-center space-x-1.5 transition shrink-0 shadow-sm"
+                                            >
+                                                <Phone className="w-3.5 h-3.5" />
+                                                <span>Call Patient Immediately</span>
+                                            </a>
+                                            <button
+                                                onClick={() => handleDismissEmergency(alert.id)}
+                                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer"
+                                                title="Mark this notice resolved"
+                                            >
+                                                ✓ Resolve
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -464,15 +507,24 @@ export default function AdminDashboard() {
                                             </div>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <a
-                                                href={`${API_BASE}/api/bookings/${b.id}/invoice`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 transition shadow-2xs"
-                                            >
-                                                <FileText className="w-3.5 h-3.5 text-teal-600" />
-                                                <span>Preview PDF</span>
-                                            </a>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <a
+                                                    href={`${API_BASE}/api/bookings/${b.id}/invoice`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 transition shadow-2xs"
+                                                >
+                                                    <FileText className="w-3.5 h-3.5 text-teal-600" />
+                                                    <span>Preview PDF</span>
+                                                </a>
+                                                <button
+                                                    onClick={() => handleDeleteBooking(b.id)}
+                                                    title={`Permanently delete booking ${b.id}`}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg transition cursor-pointer"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

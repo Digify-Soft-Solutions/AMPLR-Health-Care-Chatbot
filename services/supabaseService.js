@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { DEFAULT_SERVICES, STAFF_POOL, getBookings, getLiveMessages, BOOKINGS, LIVE_WHATSAPP_MESSAGES, updateBookingStatus } from '../data/mockDatabase.js';
+import { DEFAULT_SERVICES, STAFF_POOL, getBookings, getLiveMessages, BOOKINGS, LIVE_WHATSAPP_MESSAGES, updateBookingStatus, deleteBooking } from '../data/mockDatabase.js';
 
 /**
  * 🏥 AMPLR Health - Supabase Realtime Database Service
@@ -246,7 +246,7 @@ export async function getBookingsFromDB() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
             return data.map(b => {
                 const pinMatch = (b.address || '').match(/\b(?:PIN|Pin|Pincode|PINCODE)?:?\s*([1-9][0-9]{5})\b/);
                 const extractedPin = b.pincode || (pinMatch ? pinMatch[1] : null);
@@ -284,11 +284,29 @@ export async function getBookingsFromDB() {
                 };
             });
         }
+        return [];
     } catch (err) {
         console.warn('[Supabase getBookings error, using fallback]:', err.message);
         return getBookings();
     }
-    return getBookings();
+}
+
+export async function deleteBookingFromDB(id) {
+    try {
+        deleteBooking(id);
+    } catch (e) {}
+
+    try {
+        const { error } = await supabase
+            .from('bookings')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.warn('[Supabase deleteBooking error]:', err.message);
+        return true;
+    }
 }
 
 export async function addBookingToDB(bookingData) {

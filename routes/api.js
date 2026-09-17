@@ -9,12 +9,13 @@ import {
     getBookingsFromDB,
     addBookingToDB,
     updateBookingInDB,
+    deleteBookingFromDB,
     getDashboardStatsFromDB
 } from '../services/supabaseService.js';
 import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { generateBookingPDF } from '../services/pdfGenerator.js';
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
-import { CONVERSATION_STATES, EMERGENCY_ALERTS } from '../data/mockDatabase.js';
+import { CONVERSATION_STATES, EMERGENCY_ALERTS, clearEmergencyAlert } from '../data/mockDatabase.js';
 import { checkAndSendAppointmentReminders, triggerManualReminder } from '../services/reminderService.js';
 
 const router = express.Router();
@@ -74,6 +75,16 @@ router.put('/bookings/:id', async (req, res) => {
             return res.json({ success: true, booking: updated });
         }
         return res.status(404).json({ error: 'Booking not found' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/bookings/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await deleteBookingFromDB(id);
+        res.json({ success: true, message: `Booking ${id} deleted` });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -159,6 +170,18 @@ router.delete('/services/:id', async (req, res) => {
 // ── EMERGENCY ESCALATIONS ────────────────────────────────────────────────────
 router.get('/emergency', (req, res) => {
     res.json({ alerts: EMERGENCY_ALERTS });
+});
+
+router.post('/emergency/clear', (req, res) => {
+    const { id } = req.body || {};
+    clearEmergencyAlert(id || 'all');
+    res.json({ success: true, alerts: EMERGENCY_ALERTS });
+});
+
+router.delete('/emergency/:id', (req, res) => {
+    const { id } = req.params;
+    clearEmergencyAlert(id);
+    res.json({ success: true, alerts: EMERGENCY_ALERTS });
 });
 
 // ── AUTOMATED REMINDERS PIPELINE ─────────────────────────────────────────────
