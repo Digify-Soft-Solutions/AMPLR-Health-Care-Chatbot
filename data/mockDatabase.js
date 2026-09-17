@@ -144,7 +144,7 @@ function loadDB() {
     return { bookings: [], emergencyAlerts: [], liveMessages: [], services: DEFAULT_SERVICES };
 }
 
-function saveDB() {
+export function saveDB() {
     try {
         const data = {
             bookings: BOOKINGS,
@@ -357,7 +357,9 @@ export function addBooking(bookingData) {
 export function updateBookingStatus(id, newStatus, staffId = null) {
     const booking = BOOKINGS.find(b => b.id === id);
     if (booking) {
-        booking.status = newStatus;
+        if (newStatus) {
+            booking.status = newStatus;
+        }
         if (staffId) {
             const staff = STAFF_POOL.find(s => s.id === staffId);
             if (staff) {
@@ -367,10 +369,11 @@ export function updateBookingStatus(id, newStatus, staffId = null) {
         saveDB();
 
         // Async sync update to Supabase
-        supabase.from('bookings').update({
-            status: newStatus,
-            ...(booking.assignedStaff ? { assigned_staff: booking.assignedStaff } : {})
-        }).eq('id', id).then(({ error }) => {
+        const updatePayload = {};
+        if (newStatus) updatePayload.status = newStatus;
+        if (booking.assignedStaff) updatePayload.assigned_staff = booking.assignedStaff;
+
+        supabase.from('bookings').update(updatePayload).eq('id', id).then(({ error }) => {
             if (error) console.warn('[Supabase Booking Update]:', error.message);
         }).catch(e => {});
 

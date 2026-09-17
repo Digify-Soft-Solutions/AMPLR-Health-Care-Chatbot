@@ -14,7 +14,8 @@ import {
 import { processHealthcareMessage } from '../services/healthcareEngine.js';
 import { generateBookingPDF } from '../services/pdfGenerator.js';
 import { sendWhatsAppMessage } from '../services/whatsappService.js';
-import { CONVERSATION_STATES } from '../data/mockDatabase.js';
+import { CONVERSATION_STATES, EMERGENCY_ALERTS } from '../data/mockDatabase.js';
+import { checkAndSendAppointmentReminders, triggerManualReminder } from '../services/reminderService.js';
 
 const router = express.Router();
 
@@ -157,7 +158,28 @@ router.delete('/services/:id', async (req, res) => {
 
 // ── EMERGENCY ESCALATIONS ────────────────────────────────────────────────────
 router.get('/emergency', (req, res) => {
-    res.json({ alerts: [] });
+    res.json({ alerts: EMERGENCY_ALERTS });
+});
+
+// ── AUTOMATED REMINDERS PIPELINE ─────────────────────────────────────────────
+router.post('/reminders/check', async (req, res) => {
+    try {
+        await checkAndSendAppointmentReminders();
+        res.json({ success: true, message: 'Automated reminder runner executed' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/bookings/:id/remind', async (req, res) => {
+    const { id } = req.params;
+    const { type } = req.body || {};
+    try {
+        const ok = await triggerManualReminder(id, type || '24h');
+        res.json({ success: ok, reminderType: type || '24h' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ── DASHBOARD KPI METRICS (Clean Live Supabase Data) ─────────────────────────

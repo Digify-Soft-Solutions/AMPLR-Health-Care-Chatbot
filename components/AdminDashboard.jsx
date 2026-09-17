@@ -72,6 +72,19 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleSendReminder = async (bookingId, type = '24h') => {
+        try {
+            await fetch(`${API_BASE}/api/bookings/${bookingId}/remind`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type })
+            });
+            fetchData();
+        } catch (err) {
+            console.error('Reminder dispatch failed:', err);
+        }
+    };
+
     const filteredBookings = filterStatus === 'ALL'
         ? bookings
         : bookings.filter(b => b.status === filterStatus);
@@ -272,15 +285,16 @@ export default function AdminDashboard() {
                                 <th className="p-4">Booking ID</th>
                                 <th className="p-4">Service & Patient Details</th>
                                 <th className="p-4">Date & Slot</th>
-                                <th className="p-4">Assigned Healthcare Staff</th>
+                                <th className="p-4">Assigned Specialist</th>
                                 <th className="p-4">Pipeline Status</th>
+                                <th className="p-4">WhatsApp Reminders</th>
                                 <th className="p-4 text-right">PDF Invoice</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {filteredBookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-14 text-center text-slate-400">
+                                    <td colSpan="7" className="p-14 text-center text-slate-400">
                                         <div className="flex flex-col items-center justify-center space-y-2">
                                             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                                 <Calendar className="w-6 h-6" />
@@ -372,9 +386,22 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="p-4 text-xs">
                                             {b.assignedStaff ? (
-                                                <div className="bg-emerald-50/80 border border-emerald-200/80 p-2 rounded-xl">
-                                                    <div className="font-bold text-emerald-800">{b.assignedStaff.name}</div>
-                                                    <div className="text-[10px] text-emerald-600 font-mono">+{b.assignedStaff.phone}</div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="bg-emerald-50/80 border border-emerald-200/80 p-2 rounded-xl flex-1">
+                                                        <div className="font-bold text-emerald-800">{b.assignedStaff.name}</div>
+                                                        <div className="text-[10px] text-emerald-600 font-mono">+{b.assignedStaff.phone}</div>
+                                                    </div>
+                                                    <select
+                                                        onChange={(e) => handleUpdateStatus(b.id, 'Assigned', e.target.value)}
+                                                        defaultValue=""
+                                                        title="Reassign specialist"
+                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 rounded-lg p-1.5 cursor-pointer shadow-2xs"
+                                                    >
+                                                        <option value="" disabled>🔄</option>
+                                                        {staff.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
                                             ) : (
                                                 <select
@@ -401,6 +428,40 @@ export default function AdminDashboard() {
                                                 <option value="In Progress">🏥 In Progress</option>
                                                 <option value="Completed">✅ Completed</option>
                                             </select>
+                                        </td>
+                                        <td className="p-4 text-xs">
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    {b.reminder24hSent ? (
+                                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                                            ✓ 24h Sent
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSendReminder(b.id, '24h')}
+                                                            title="Send 24-Hour WhatsApp Reminder"
+                                                            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
+                                                        >
+                                                            ⏰ Send 24h
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {b.reminder2hSent ? (
+                                                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                                            ✓ 2h Sent
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSendReminder(b.id, '2h')}
+                                                            title="Send 2-Hour WhatsApp Reminder"
+                                                            className="inline-flex items-center gap-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer shadow-2xs"
+                                                        >
+                                                            🚗 Send 2h
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-right">
                                             <a

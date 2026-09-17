@@ -246,7 +246,7 @@ export async function getBookingsFromDB() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
             return data.map(b => {
                 const pinMatch = (b.address || '').match(/\b(?:PIN|Pin|Pincode|PINCODE)?:?\s*([1-9][0-9]{5})\b/);
                 const extractedPin = b.pincode || (pinMatch ? pinMatch[1] : null);
@@ -276,6 +276,8 @@ export async function getBookingsFromDB() {
                     paymentStatus: b.payment_status || 'Pending',
                     status: b.status || 'Pending Assignment',
                     assignedStaff: b.assigned_staff,
+                    reminder24hSent: Boolean(b.assigned_staff?.reminder_24h_sent),
+                    reminder2hSent: Boolean(b.assigned_staff?.reminder_2h_sent),
                     invoiceUrl: b.invoice_url,
                     invoiceId: b.invoice_id,
                     createdAt: b.created_at
@@ -286,7 +288,7 @@ export async function getBookingsFromDB() {
         console.warn('[Supabase getBookings error, using fallback]:', err.message);
         return getBookings();
     }
-    return [];
+    return getBookings();
 }
 
 export async function addBookingToDB(bookingData) {

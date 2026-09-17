@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 
 import webhookRoutes from './routes/webhook.js';
 import apiRoutes from './routes/api.js';
+import { checkAndSendAppointmentReminders } from './services/reminderService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -155,6 +156,18 @@ app.listen(PORT, HOST, () => {
     // Recurring ping every 8 minutes (well before Render's 15-minute inactivity limit)
     setInterval(performKeepAlivePing, 8 * 60 * 1000);
     console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 8 min)`);
+
+    // ── AUTOMATED APPOINTMENT REMINDER RUNNER ──────────────────────────────────
+    // Runs an initial check 10 seconds after server start, then every 5 minutes.
+    setTimeout(() => {
+        checkAndSendAppointmentReminders().catch(e => console.warn('[Reminder Init Error]:', e.message));
+    }, 10 * 1000);
+
+    const REMINDER_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+    setInterval(() => {
+        checkAndSendAppointmentReminders().catch(e => console.warn('[Reminder Interval Error]:', e.message));
+    }, REMINDER_INTERVAL_MS);
+    console.log(`[Reminders] ⏰ Automated 24h & 2h WhatsApp Appointment Reminder Engine Active (Checking every 5m)`);
 });
 
 export default app;
