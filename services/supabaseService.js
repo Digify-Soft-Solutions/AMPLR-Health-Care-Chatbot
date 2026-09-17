@@ -146,7 +146,7 @@ export async function getStaffFromDB() {
     return STAFF_POOL;
 }
 
-// ── INQUIRIES (WhatsApp live inbound messages) ──────────────────────────────
+// ── INQUIRIES (WhatsApp live inbound messages - 1 Inquiry per User) ─────────
 export async function getInquiriesFromDB() {
     try {
         const { data, error } = await supabase
@@ -156,7 +156,21 @@ export async function getInquiriesFromDB() {
             .limit(100);
 
         if (error) throw error;
-        if (Array.isArray(data)) return data;
+        if (Array.isArray(data)) {
+            // Deduplicate by phone so each client/lead only appears once
+            const seen = new Set();
+            const unique = [];
+            for (const item of data) {
+                const p = (item.phone || '').toString().replace(/\D/g, '');
+                if (p && !seen.has(p)) {
+                    seen.add(p);
+                    unique.push(item);
+                } else if (!p) {
+                    unique.push(item);
+                }
+            }
+            return unique;
+        }
     } catch (err) {
         console.warn('[Supabase getInquiries error, using fallback]:', err.message);
         return getLiveMessages();
@@ -166,26 +180,57 @@ export async function getInquiriesFromDB() {
 
 export async function addInquiryToDB(phone, userMessage, botReplyText, senderName = null) {
     try {
-        const cleanPhone = (phone || '').toString();
-        const id = `INQ-${Date.now()}`;
-        const row = {
-            id,
-            phone: cleanPhone || '+91 WhatsApp Patient',
-            sender_name: senderName ? `${senderName} (${cleanPhone})` : `Patient (${cleanPhone})`,
-            user_message: userMessage || 'Message received',
-            bot_reply_text: typeof botReplyText === 'string' ? botReplyText : (botReplyText ? botReplyText.text : 'Automated Reply Sent'),
-            status: 'NEW_LEAD',
-            created_at: new Date().toISOString()
-        };
+        const rawDigits = (phone || '').toString().replace(/\D/g, '');
+        const cleanPhone = rawDigits.length === 10 ? '91' + rawDigits : (rawDigits || phone || '').toString();
+        const formattedName = senderName ? `${senderName} (${cleanPhone})` : `Patient (${cleanPhone})`;
+        const replyText = typeof botReplyText === 'string' ? botReplyText : (botReplyText ? botReplyText.text : 'Automated Reply Sent');
 
-        const { data, error } = await supabase
+        // Check if inquiry already exists for this phone number
+        const { data: existing } = await supabase
             .from('inquiries')
-            .insert([row])
-            .select();
+            .select('id, phone')
+            .or(`phone.eq.${cleanPhone},phone.eq.${rawDigits}`)
+            .limit(1);
 
-        if (error) throw error;
-        console.log(`[Supabase Inquiry Saved] ID: ${id} for ${cleanPhone}`);
-        return data ? data[0] : row;
+        if (existing && existing.length > 0) {
+            // Update existing inquiry for this user
+            const { data, error } = await supabase
+                .from('inquiries')
+                .update({
+                    sender_name: formattedName,
+                    user_message: userMessage || 'Message received',
+                    bot_reply_text: replyText,
+                    status: 'NEW_LEAD',
+                    created_at: new Date().toISOString()
+                })
+                .eq('id', existing[0].id)
+                .select();
+
+            if (error) throw error;
+            console.log(`[Supabase Inquiry Updated] ID: ${existing[0].id} for ${cleanPhone}`);
+            return data ? data[0] : null;
+        } else {
+            // Insert new inquiry
+            const id = `INQ-${cleanPhone || Date.now()}`;
+            const row = {
+                id,
+                phone: cleanPhone || '+91 WhatsApp Patient',
+                sender_name: formattedName,
+                user_message: userMessage || 'Message received',
+                bot_reply_text: replyText,
+                status: 'NEW_LEAD',
+                created_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('inquiries')
+                .insert([row])
+                .select();
+
+            if (error) throw error;
+            console.log(`[Supabase Inquiry Created] ID: ${id} for ${cleanPhone}`);
+            return data ? data[0] : row;
+        }
     } catch (err) {
         console.error('[Supabase addInquiry error]:', err.message);
         return null;

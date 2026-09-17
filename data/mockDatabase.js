@@ -221,46 +221,94 @@ export function deleteService(id) {
 }
 
 export function addLiveWhatsAppMessage(phone, userMessage, botReplyText, displayName = null) {
-    const cleanPhone = (phone || '').toString();
+    const rawDigits = (phone || '').toString().replace(/\D/g, '');
+    const cleanPhone = rawDigits.length === 10 ? '91' + rawDigits : (rawDigits || phone || '').toString();
     const formattedName = displayName ? `${displayName} (${cleanPhone})` : `Patient (${cleanPhone || 'WhatsApp User'})`;
-    const newMsg = {
-        id: `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-        phone: cleanPhone || '+91 WhatsApp Patient',
-        senderName: formattedName,
-        userMessage: userMessage || 'Message received',
-        botReplyText: typeof botReplyText === 'string' ? botReplyText : (botReplyText ? botReplyText.text : 'Automated Reply Sent'),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: 'Auto Replied (WhatsApp Cloud API)'
-    };
+    const replyText = typeof botReplyText === 'string' ? botReplyText : (botReplyText ? botReplyText.text : 'Automated Reply Sent');
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    LIVE_WHATSAPP_MESSAGES.unshift(newMsg);
-    if (LIVE_WHATSAPP_MESSAGES.length > 100) {
-        LIVE_WHATSAPP_MESSAGES.pop();
+    // Check if inquiry already exists for this phone number in local memory
+    const existingIndex = LIVE_WHATSAPP_MESSAGES.findIndex(m => {
+        const p1 = (m.phone || '').toString().replace(/\D/g, '');
+        return p1 && cleanPhone && (p1 === cleanPhone || p1.endsWith(cleanPhone) || cleanPhone.endsWith(p1));
+    });
+
+    let msgRecord;
+    if (existingIndex !== -1) {
+        // Update existing record with the latest conversation message
+        msgRecord = LIVE_WHATSAPP_MESSAGES[existingIndex];
+        msgRecord.userMessage = userMessage || msgRecord.userMessage;
+        msgRecord.botReplyText = replyText;
+        msgRecord.timestamp = timeStr;
+        if (displayName) msgRecord.senderName = formattedName;
+        // Move to top of the list as the most recent conversation
+        LIVE_WHATSAPP_MESSAGES.splice(existingIndex, 1);
+        LIVE_WHATSAPP_MESSAGES.unshift(msgRecord);
+    } else {
+        msgRecord = {
+            id: `INQ-${cleanPhone || Math.floor(1000 + Math.random() * 9000)}`,
+            phone: cleanPhone || '+91 WhatsApp Patient',
+            senderName: formattedName,
+            userMessage: userMessage || 'Message received',
+            botReplyText: replyText,
+            timestamp: timeStr,
+            status: 'Auto Replied (WhatsApp Cloud API)'
+        };
+        LIVE_WHATSAPP_MESSAGES.unshift(msgRecord);
+        if (LIVE_WHATSAPP_MESSAGES.length > 100) {
+            LIVE_WHATSAPP_MESSAGES.pop();
+        }
     }
     saveDB();
 
-    // Async sync to Supabase inquiries table
-    try {
-        const query = supabase.from('inquiries').insert([{
-            id: newMsg.id,
-            phone: newMsg.phone,
-            sender_name: newMsg.senderName,
-            user_message: newMsg.userMessage,
-            bot_reply_text: newMsg.botReplyText,
-            status: newMsg.status,
-            created_at: new Date().toISOString()
-        }]);
-        if (query && typeof query.then === 'function') {
-            query.then(({ error } = {}) => {
-                if (error) console.warn('[Supabase Inquiry Sync]:', error.message);
-                else console.log(`[Supabase Inquiry Synced]: ${newMsg.id} from ${newMsg.phone}`);
-            }).catch(e => console.warn('[Supabase Inquiry Error]:', e.message));
-        }
-    } catch (e) {
-        console.warn('[Supabase Inquiry Sync Skip]:', e.message);
-    }
+    // Async sync to Supabase inquiries table (Strict 1 Inquiry per User/Phone)
+    (async () => {
+        try {
+            const { data: existing, error: findError } = await supabase
+                .from('inquiries')
+                .select('id, phone')
+                .or(`phone.eq.${cleanPhone},phone.eq.${rawDigits}`)
+                .limit(1);
 
-    return newMsg;
+            if (existing && existing.length > 0) {
+                // Update existing inquiry row for this user
+                const { error: updateError } = await supabase
+                    .from('inquiries')
+                    .update({
+                        sender_name: formattedName,
+                        user_message: msgRecord.userMessage,
+                        bot_reply_text: msgRecord.botReplyText,
+                        status: msgRecord.status,
+                        created_at: new Date().toISOString()
+                    })
+                    .eq('id', existing[0].id);
+
+                if (updateError) console.warn('[Supabase Inquiry Update Warning]:', updateError.message);
+                else console.log(`[Supabase Inquiry Updated]: ${existing[0].id} for ${cleanPhone}`);
+            } else {
+                // Insert new unique inquiry record
+                const newId = `INQ-${cleanPhone || Date.now()}`;
+                const { error: insertError } = await supabase
+                    .from('inquiries')
+                    .insert([{
+                        id: newId,
+                        phone: cleanPhone,
+                        sender_name: formattedName,
+                        user_message: msgRecord.userMessage,
+                        bot_reply_text: msgRecord.botReplyText,
+                        status: msgRecord.status,
+                        created_at: new Date().toISOString()
+                    }]);
+
+                if (insertError) console.warn('[Supabase Inquiry Insert Warning]:', insertError.message);
+                else console.log(`[Supabase Inquiry Created]: ${newId} for ${cleanPhone}`);
+            }
+        } catch (e) {
+            console.warn('[Supabase Inquiry Sync Skip]:', e.message);
+        }
+    })();
+
+    return msgRecord;
 }
 
 export function addBooking(bookingData) {

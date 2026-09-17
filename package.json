@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "concurrently \"node server.js\" \"next dev -p 3000 -H 0.0.0.0\"",
-    "dev:next": "next dev -p 3000 -H 0.0.0.0",
+    "dev": "concurrently \"node server.js\" \"next dev --webpack -p 3000 -H 0.0.0.0\"",
+    "dev:next": "next dev --webpack -p 3000 -H 0.0.0.0",
     "dev:server": "node server.js",
     "build": "next build"
   },
