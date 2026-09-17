@@ -100,10 +100,13 @@ router.get('/messages', async (req, res) => {
             const name = (inq.sender_name || '').toLowerCase();
             const isPartner = (inq.id && inq.id.startsWith('PTR-')) ||
                 status.includes('partner') ||
+                status.includes('ptr-') ||
                 name.includes('[partner]') ||
+                name.includes('partner') ||
                 msg.startsWith('partner application') ||
                 msg.includes('partner onboarding') ||
-                msg.includes('partner registration');
+                msg.includes('partner registration') ||
+                msg.includes('partner');
 
             return {
                 id: inq.id,

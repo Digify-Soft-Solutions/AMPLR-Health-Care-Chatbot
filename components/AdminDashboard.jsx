@@ -115,13 +115,39 @@ export default function AdminDashboard() {
         ? bookings
         : bookings.filter(b => b.status === filterStatus);
 
-    const patientMessages = messages.filter(m => m.leadType !== 'PARTNER');
-    const partnerMessages = messages.filter(m => m.leadType === 'PARTNER');
+    const isPartnerLead = (m) => {
+        if (!m) return false;
+        if (m.leadType === 'PARTNER') return true;
+        const s = (m.status || '').toLowerCase();
+        const name = (m.senderName || '').toLowerCase();
+        const msg = (m.userMessage || '').toLowerCase();
+        const id = (m.id || '').toLowerCase();
+        return (
+            id.startsWith('ptr-') ||
+            s.includes('partner') ||
+            s.includes('ptr-') ||
+            name.includes('[partner]') ||
+            name.includes('partner') ||
+            msg.includes('partner application') ||
+            msg.includes('partner onboarding') ||
+            msg.includes('partner registration') ||
+            msg.includes('partner')
+        );
+    };
+
+    const partnerMessages = messages.filter(isPartnerLead);
+    const patientMessages = messages.filter(m => !isPartnerLead(m));
     const displayedMessages = inboundTab === 'PATIENT'
         ? patientMessages
         : inboundTab === 'PARTNER'
             ? partnerMessages
             : messages;
+
+    useEffect(() => {
+        if (patientMessages.length === 0 && partnerMessages.length > 0 && inboundTab === 'PATIENT') {
+            setInboundTab('PARTNER');
+        }
+    }, [patientMessages.length, partnerMessages.length]);
 
     const totalEnquiriesCount = stats?.totalEnquiries || messages.length;
 
@@ -696,9 +722,15 @@ export default function AdminDashboard() {
                                 </tr>
                             ) : (
                                 displayedMessages.map((m) => {
-                                    const isPartner = m.leadType === 'PARTNER';
+                                    const isPartner = isPartnerLead(m);
                                     const isBooking = (m.status && m.status.toLowerCase().includes('booking'));
                                     const cleanPhone = (m.phone || '').toString().replace(/\D/g, '');
+                                    const partnerIdMatch = (m.status || '').match(/PTR-\d+/i) || (m.userMessage || '').match(/PTR-\d+/i) || (m.id || '').match(/PTR-\d+/i);
+                                    const displayId = isPartner ? (partnerIdMatch ? partnerIdMatch[0].toUpperCase() : m.id) : m.id;
+                                    const cleanSenderName = (m.senderName || (isPartner ? 'Partner Applicant' : 'WhatsApp Patient'))
+                                        .replace(/\[partner\]/gi, '')
+                                        .replace(/\(\d+\)/g, '')
+                                        .trim();
 
                                     return (
                                         <tr key={m.id} className="hover:bg-slate-50/70 transition">
@@ -708,12 +740,17 @@ export default function AdminDashboard() {
                                                         ? 'bg-indigo-50 text-indigo-900 border-indigo-200' 
                                                         : 'bg-slate-100 text-slate-800 border-slate-200'
                                                 }`}>
-                                                    {m.id}
+                                                    {displayId}
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4 text-xs">
                                                 <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                                    <span>{m.senderName || (isPartner ? 'Partner Applicant' : 'WhatsApp Patient')}</span>
+                                                    <span>{cleanSenderName}</span>
+                                                    {isPartner && (
+                                                        <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                                                            Partner
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                                     +{cleanPhone}
@@ -722,7 +759,7 @@ export default function AdminDashboard() {
                                             <td className="py-3 px-4 text-xs whitespace-nowrap">
                                                 {isPartner ? (
                                                     <span className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                                                        🤝 {m.status || 'Partner Applicant'}
+                                                        🤝 {(m.status || 'Partner Applicant').replace(/^[💭🤝\s]+/, '')}
                                                     </span>
                                                 ) : isBooking ? (
                                                     <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-2xs">
