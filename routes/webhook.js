@@ -28,7 +28,15 @@ function isDuplicate(key) {
     return false;
 }
 
-const BOT_NUMBERS = new Set(['917425016636', '7425016636']);
+const envBotNumber = (process.env.BOT_PHONE_NUMBER || '7997888448').replace(/\D/g, '');
+const BOT_NUMBERS = new Set([
+    '7997888448',
+    '917997888448',
+    envBotNumber,
+    envBotNumber.startsWith('91') ? envBotNumber.slice(2) : `91${envBotNumber}`,
+    '7425016636',
+    '917425016636'
+]);
 
 /**
  * GET — Webhook verification
