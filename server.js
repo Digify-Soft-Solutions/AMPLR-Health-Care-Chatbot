@@ -128,8 +128,12 @@ app.listen(PORT, HOST, () => {
 
     // ── KEEP-ALIVE PING (Render Free Tier 24/7 Awake) ───────────────────────────
     // Render free instances sleep after 15 minutes of inactivity.
-    // Self-pinging every 8 minutes resets the Render inactivity timer so it NEVER sleeps.
-    const SELF_URL = (process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+    // Self-pinging every 5 minutes ensures it NEVER sleeps or slows down.
+    const SELF_URL = (
+        process.env.RENDER_EXTERNAL_URL || 
+        process.env.APP_URL || 
+        'https://amplr-health-care-chatbot.onrender.com'
+    ).replace(/\/$/, '');
     
     if (SELF_URL) {
         function performKeepAlivePing() {
@@ -155,9 +159,9 @@ app.listen(PORT, HOST, () => {
         // Initial ping 15 seconds after boot to confirm connectivity
         setTimeout(performKeepAlivePing, 15 * 1000);
 
-        // Recurring ping every 8 minutes (well before Render's 15-minute inactivity limit)
-        setInterval(performKeepAlivePing, 8 * 60 * 1000);
-        console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 8 min)`);
+        // Recurring ping every 5 minutes (well before Render's 15-minute inactivity limit)
+        setInterval(performKeepAlivePing, 5 * 60 * 1000);
+        console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 5 min)`);
     }
 
     // ── AUTOMATED APPOINTMENT REMINDER RUNNER ──────────────────────────────────
