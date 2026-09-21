@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const DEFAULT_JWT = ['eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.', 'eyJpYXQiOjE3NjA3MDY0NDYsImRhdGEiOnsidXNlcm5hbWUiOiJEaWdpZnlfc29mdCIsIm5hbWUiOiJEaWdpZnlfc29mdCJ9fQ.', 'lbhITMYPzs0RvDRf-YhqbJ5r63rFUPnInfTnIG_T998'].join('');
-const DEFAULT_USERNAME = 'Digify_soft';
+const DEFAULT_USERNAME = 'Amplrhealth';
 
 /**
  * Send outbound WhatsApp message using AutobotChat (Ported directly from Garments ERP worker)
@@ -14,7 +13,7 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
     console.log(`[Outbound WhatsApp API] Sending message to ${cleanPhone}...`);
 
     const provider = process.env.WHATSAPP_PROVIDER || 'AUTOBOTCHAT';
-    const token = process.env.AUTOBOTCHAT_JWT_TOKEN || DEFAULT_JWT;
+    const token = process.env.AUTOBOTCHAT_JWT_TOKEN || '';
     const username = process.env.AUTOBOTCHAT_USERNAME || DEFAULT_USERNAME;
     const metaToken = process.env.META_ACCESS_TOKEN || 'MOCK_TOKEN';
     const wabaId = process.env.META_WABA_ID || 'MOCK_WABA';

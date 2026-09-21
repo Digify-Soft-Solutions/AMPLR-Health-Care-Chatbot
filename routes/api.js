@@ -40,7 +40,8 @@ router.put('/bookings/:id', async (req, res) => {
 
             // 1. Staff Assigned Alert
             if (staffId && updated.assignedStaff && patientPhone) {
-                const staffAlert = `🏥 *AMPLR HEALTH - Specialist Assigned!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour healthcare specialist has been successfully allocated:\n\n👤 *Specialist*: *${updated.assignedStaff.name}*\n📞 *Direct Phone*: *${updated.assignedStaff.phone}*\n🩺 *Service*: ${updated.serviceName}\n📅 *Appointment*: ${updated.date} (${updated.slot})\n\nOur team member will contact you shortly and arrive at your scheduled time. For queries, call our 24/7 Helpline: *7997888448*.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
+                const helplineNum = process.env.BOT_PHONE_NUMBER || process.env.ADMIN_PHONE || '9849649049';
+                const staffAlert = `🏥 *AMPLR HEALTH - Specialist Assigned!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour healthcare specialist has been successfully allocated:\n\n👤 *Specialist*: *${updated.assignedStaff.name}*\n📞 *Direct Phone*: *${updated.assignedStaff.phone}*\n🩺 *Service*: ${updated.serviceName}\n📅 *Appointment*: ${updated.date} (${updated.slot})\n\nOur team member will contact you shortly and arrive at your scheduled time. For queries, call our 24/7 Helpline: *${helplineNum}*.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
                 console.log(`[Staff Assigned Alert] 📲 Sending WhatsApp alert to ${patientPhone} for ${updated.assignedStaff.name}...`);
                 sendWhatsAppMessage(patientPhone, staffAlert).then(() => {
                     console.log(`[Staff Assigned Alert] ✅ Delivered successfully to ${patientPhone}`);
@@ -49,8 +50,9 @@ router.put('/bookings/:id', async (req, res) => {
 
             // 2. On The Way Alert
             if (status === 'On the way' && patientPhone) {
+                const helplineNum = process.env.BOT_PHONE_NUMBER || process.env.ADMIN_PHONE || '9849649049';
                 const staffName = updated.assignedStaff ? updated.assignedStaff.name : 'Healthcare Specialist';
-                const staffPhone = updated.assignedStaff ? updated.assignedStaff.phone : '7997888448';
+                const staffPhone = updated.assignedStaff ? updated.assignedStaff.phone : helplineNum;
                 const onTheWayAlert = `🚗 *AMPLR HEALTH - Specialist is On The Way!* 👩‍⚕️\n----------------------------------------\nHello *${updated.patientName || 'Patient'}*,\n\nYour assigned specialist *${staffName}* has departed and is now on the way to your doorstep for *${updated.serviceName}*.\n\n📞 Specialist Phone: *${staffPhone}*\n⏰ Appointment Slot: *${updated.slot || 'Scheduled'}*\n\nPlease be available at your location.\n----------------------------------------\n_AMPLR HEALTH – Brings Hospital Care to Your Home_`;
                 console.log(`[On The Way Alert] 📲 Sending WhatsApp alert to ${patientPhone}...`);
                 sendWhatsAppMessage(patientPhone, onTheWayAlert).catch(e => console.warn('[On The Way Alert Error]:', e.message));

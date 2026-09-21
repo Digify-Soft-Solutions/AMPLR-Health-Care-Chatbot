@@ -11,11 +11,15 @@ services:
       - key: WHATSAPP_PROVIDER
         value: AUTOBOTCHAT
       - key: AUTOBOTCHAT_USERNAME
-        value: Digify_soft
+        value: Amplrhealth
       - key: META_VERIFY_TOKEN
-        value: automatex_copilot_token
+        value: amplrhealth_webhook_token
       - key: BOT_PHONE_NUMBER
-        value: "917997888448"
+        value: "919849649049"
+      - key: ADMIN_PHONE
+        value: "919849649049"
+      - key: ADMIN_EMAIL
+        value: "amplrhealth@gmail.com"
       - key: AUTOBOTCHAT_JWT_TOKEN
         sync: false
       - key: GROQ_API_KEY

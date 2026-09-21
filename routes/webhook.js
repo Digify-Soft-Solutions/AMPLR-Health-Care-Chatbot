@@ -4,7 +4,7 @@ import { sendWhatsAppMessage } from '../services/whatsappService.js';
 import { addLiveWhatsAppMessage } from '../data/mockDatabase.js';
 
 const router = express.Router();
-const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'automatex_copilot_token';
+const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'amplrhealth_webhook_token';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEDUPLICATION — In-memory Map (works perfectly on Render persistent server)
@@ -28,14 +28,12 @@ function isDuplicate(key) {
     return false;
 }
 
-const envBotNumber = (process.env.BOT_PHONE_NUMBER || '7997888448').replace(/\D/g, '');
+const envBotNumber = (process.env.BOT_PHONE_NUMBER || '9849649049').replace(/\D/g, '');
 const BOT_NUMBERS = new Set([
-    '7997888448',
-    '917997888448',
+    '9849649049',
+    '919849649049',
     envBotNumber,
-    envBotNumber.startsWith('91') ? envBotNumber.slice(2) : `91${envBotNumber}`,
-    '7425016636',
-    '917425016636'
+    envBotNumber.startsWith('91') ? envBotNumber.slice(2) : `91${envBotNumber}`
 ]);
 
 /**
@@ -46,7 +44,7 @@ router.get('/', (req, res) => {
     const token     = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
     if (mode && token) {
-        if (mode === 'subscribe' && (token === VERIFY_TOKEN || token === 'automatex_copilot_token')) {
+        if (mode === 'subscribe' && (token === VERIFY_TOKEN || token === 'amplrhealth_webhook_token' || token === 'automatex_copilot_token')) {
             console.log('[Webhook] Verified successfully.');
             return res.status(200).send(challenge);
         }

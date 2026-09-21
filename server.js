@@ -129,34 +129,36 @@ app.listen(PORT, HOST, () => {
     // ── KEEP-ALIVE PING (Render Free Tier 24/7 Awake) ───────────────────────────
     // Render free instances sleep after 15 minutes of inactivity.
     // Self-pinging every 8 minutes resets the Render inactivity timer so it NEVER sleeps.
-    const SELF_URL = (process.env.RENDER_EXTERNAL_URL || 'https://health-care-chat-bot-4yki.onrender.com').replace(/\/$/, '');
+    const SELF_URL = (process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
     
-    function performKeepAlivePing() {
-        const pingUrl = `${SELF_URL}/health`;
-        const req = https.get(pingUrl, (res) => {
-            keepAliveStats.totalPings++;
-            keepAliveStats.lastPingAt = new Date().toISOString();
-            keepAliveStats.lastStatus = res.statusCode;
-            console.log(`[Keep-Alive] 🔄 Self-ping #${keepAliveStats.totalPings} to ${pingUrl} → ${res.statusCode}`);
-        });
+    if (SELF_URL) {
+        function performKeepAlivePing() {
+            const pingUrl = `${SELF_URL}/health`;
+            const req = https.get(pingUrl, (res) => {
+                keepAliveStats.totalPings++;
+                keepAliveStats.lastPingAt = new Date().toISOString();
+                keepAliveStats.lastStatus = res.statusCode;
+                console.log(`[Keep-Alive] 🔄 Self-ping #${keepAliveStats.totalPings} to ${pingUrl} → ${res.statusCode}`);
+            });
 
-        req.on('error', (err) => {
-            keepAliveStats.lastPingAt = new Date().toISOString();
-            keepAliveStats.lastStatus = `Error: ${err.message}`;
-            console.warn(`[Keep-Alive] ⚠️ Self-ping failed: ${err.message}`);
-        });
+            req.on('error', (err) => {
+                keepAliveStats.lastPingAt = new Date().toISOString();
+                keepAliveStats.lastStatus = `Error: ${err.message}`;
+                console.warn(`[Keep-Alive] ⚠️ Self-ping failed: ${err.message}`);
+            });
 
-        req.setTimeout(10000, () => {
-            req.destroy();
-        });
+            req.setTimeout(10000, () => {
+                req.destroy();
+            });
+        }
+
+        // Initial ping 15 seconds after boot to confirm connectivity
+        setTimeout(performKeepAlivePing, 15 * 1000);
+
+        // Recurring ping every 8 minutes (well before Render's 15-minute inactivity limit)
+        setInterval(performKeepAlivePing, 8 * 60 * 1000);
+        console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 8 min)`);
     }
-
-    // Initial ping 15 seconds after boot to confirm connectivity
-    setTimeout(performKeepAlivePing, 15 * 1000);
-
-    // Recurring ping every 8 minutes (well before Render's 15-minute inactivity limit)
-    setInterval(performKeepAlivePing, 8 * 60 * 1000);
-    console.log(`[Keep-Alive] ✅ Automatic 24/7 Keep-Alive active for ${SELF_URL} (Pinging every 8 min)`);
 
     // ── AUTOMATED APPOINTMENT REMINDER RUNNER ──────────────────────────────────
     // Runs an initial check 10 seconds after server start, then every 5 minutes.

@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Healthcare Bot Health Check
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
         run: |
-          echo "Pinging Render server to keep it awake..."
-          curl -s -f -m 30 "https://health-care-chat-bot-4yki.onrender.com/health" || echo "Ping dispatched"
+          if [ -n "$RENDER_APP_URL" ]; then
+            echo "Pinging Render server at $RENDER_APP_URL..."
+            curl -s -f -m 30 "$RENDER_APP_URL/health" || echo "Ping dispatched"
+          else
+            echo "RENDER_APP_URL secret not set. Skipping keep-alive ping."
+          fi

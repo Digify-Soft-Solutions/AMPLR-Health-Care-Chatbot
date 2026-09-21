@@ -3,7 +3,7 @@ import { sendWhatsAppMessage } from './whatsappService.js';
 import { BOOKINGS, saveDB } from '../data/mockDatabase.js';
 import { supabase } from './supabaseClient.js';
 
-const HELPLINE = '7997888448';
+const HELPLINE = process.env.BOT_PHONE_NUMBER || process.env.ADMIN_PHONE || '9849649049';
 
 /**
  * Parse appointment date and time slot into a JavaScript Date object in IST

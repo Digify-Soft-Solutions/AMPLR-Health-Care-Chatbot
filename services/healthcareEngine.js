@@ -4,12 +4,12 @@ import { SERVICES, addBooking, getBookings, updateBookingStatus, addEmergencyAle
  * ============================================================================
  * AMPLR HEALTH - Master Healthcare Chatbot Engine
  * Slogan: "Brings Hospital Care to Your Home"
- * Helpline: 7997888448
+ * Helpline: 9849649049
  * Full End-to-End Bilingual Engine (English & Telugu)
  * ============================================================================
  */
 
-const HELPLINE = '7997888448';
+const HELPLINE = process.env.BOT_PHONE_NUMBER || process.env.ADMIN_PHONE || '9849649049';
 
 const PARTNER_FORMS = {
     '1': { name: 'Lab-Blood Collection (Phlebotomist)', url: 'https://forms.gle/LXC4gU5E7wFVEAvcA' },
@@ -1061,7 +1061,7 @@ function getMainMenuEnglish() {
                     { id: '2', title: '2️⃣ Pricing & Tariff', description: 'Doctors, Nursing & Ambulance Slabs' },
                     { id: '3', title: '3️⃣ Check Status', description: 'Track or cancel your active booking' },
                     { id: '4', title: '4️⃣ Repeat Booking', description: 'Re-order past home healthcare visit' },
-                    { id: '5', title: '5️⃣ 24/7 Helpline', description: 'Call care coordinator: 7997888448' },
+                    { id: '5', title: '5️⃣ 24/7 Helpline', description: 'Call care coordinator: 9849649049' },
                     { id: '6', title: '6️⃣ Become a Partner', description: 'Doctor, Nurse, Lab, Driver onboarding' }
                 ]
             }
@@ -1082,7 +1082,7 @@ function getMainMenuTelugu() {
                     { id: '2', title: '2️⃣ ధరల జాబితా', description: 'డాక్టర్లు, నర్సింగ్, అంబులెన్స్ రేట్లు' },
                     { id: '3', title: '3️⃣ బుకింగ్ స్థితి', description: 'మీ బుకింగ్ స్థితిని తనిఖీ చేయండి' },
                     { id: '4', title: '4️⃣ రిపీట్ బుకింగ్', description: 'గత సేవను త్వరగా మళ్లీ బుక్ చేయండి' },
-                    { id: '5', title: '5️⃣ 24/7 హెల్ప్‌లైన్', description: 'సహాయం కోసం కాల్ చేయండి: 7997888448' },
+                    { id: '5', title: '5️⃣ 24/7 హెల్ప్‌లైన్', description: 'సహాయం కోసం కాల్ చేయండి: 9849649049' },
                     { id: '6', title: '6️⃣ భాగస్వామి అవ్వండి', description: 'హెల్త్‌కేర్ నెట్‌వర్క్‌లో చేరండి' }
                 ]
             }
