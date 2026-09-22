@@ -37,6 +37,13 @@ const PORT = process.env.PORT || 10000;
 
 
 app.use(cors());
+app.use((req, res, next) => {
+    if (req.url.includes('\\') || req.url.includes('%5C')) {
+        console.warn(`[URL Normalizer] Sanitizing backslash in request URL: ${req.url}`);
+        req.url = req.url.replace(/\\|%5C/gi, '/');
+    }
+    next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
