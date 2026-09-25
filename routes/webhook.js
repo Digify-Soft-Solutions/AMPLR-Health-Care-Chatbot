@@ -28,10 +28,12 @@ function isDuplicate(key) {
     return false;
 }
 
-const envBotNumber = (process.env.BOT_PHONE_NUMBER || '9849649049').replace(/\D/g, '');
+const envBotNumber = (process.env.BOT_PHONE_NUMBER || '15553638020').replace(/\D/g, '');
 const BOT_NUMBERS = new Set([
     '9849649049',
     '919849649049',
+    '15553638020',
+    '5553638020',
     envBotNumber,
     envBotNumber.startsWith('91') ? envBotNumber.slice(2) : `91${envBotNumber}`
 ]);
