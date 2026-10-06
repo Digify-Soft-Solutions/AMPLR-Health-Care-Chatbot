@@ -4,16 +4,18 @@ import { addEmergencyAlert, CONVERSATION_STATES } from '../data/mockDatabase.js'
  * ============================================================================
  * AMPLR HEALTH - Master Healthcare Chatbot Engine
  * Slogan: "Brings Hospital Care to Your Home"
+ * Official Website: https://amplrhealth.com/
  * Helpline: 9849649049
  * Simplified 2-Flow Engine:
  *   1. Pricing & Tariff (Doctor, Nursing, Ambulance, Lab, Physio, Caregiver, ECG)
  *   2. Become a Healthcare Partner (Google Forms Onboarding Links)
- *   3. 24/7 Helpline & Support
+ *   3. 24/7 Helpline & Official Website Booking Link
  * Full Bilingual Support (English & Telugu)
  * ============================================================================
  */
 
 const HELPLINE = process.env.BOT_PHONE_NUMBER || process.env.ADMIN_PHONE || '9849649049';
+const WEBSITE_URL = 'https://amplrhealth.com/';
 
 export const PARTNER_FORMS = {
     '1': { id: '1', name: 'Lab-Blood Collection (Phlebotomist)', short: 'Lab Technician / Phlebotomist', url: 'https://forms.gle/LXC4gU5E7wFVEAvcA' },
@@ -59,7 +61,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
         addEmergencyAlert({ phone: userPhone, triggerKeyword: text });
         return {
             type: 'TEXT',
-            text: `🚨 *URGENT CLINICAL NOTICE* 🚨\n----------------------------------------\nIf the patient is experiencing a life-threatening medical emergency:\n\n1️⃣ Please dial **108 Emergency Ambulance** immediately.\n2️⃣ Our Clinical Escalation Team has been notified.\n\n📞 Support Line: *${HELPLINE}*\n----------------------------------------\n_AMPLR HEALTH provides planned home healthcare services._`
+            text: `🚨 *URGENT CLINICAL NOTICE* 🚨\n----------------------------------------\nIf the patient is experiencing a life-threatening medical emergency:\n\n1️⃣ Please dial **108 Emergency Ambulance** immediately.\n2️⃣ Our Clinical Escalation Team has been notified.\n\n📞 Support Line: *${HELPLINE}*\n🌐 Official Website: ${WEBSITE_URL}\n----------------------------------------\n_AMPLR HEALTH provides planned home healthcare services._`
         };
     }
 
@@ -87,7 +89,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
         return getLanguageMenu();
     }
 
-    // ── 3. DIRECT KEYWORD SHORTCUTS ──────────────────────────────────────────
+    // ── 4. DIRECT KEYWORD SHORTCUTS ──────────────────────────────────────────
     // Pricing shortcuts
     if (text.includes('price') || text.includes('tariff') || text.includes('rate') || text.includes('cost') || text.includes('ధరలు')) {
         CONVERSATION_STATES[phoneKey] = { step: 'SELECT_PRICING_CATEGORY', lang: 'en', data: {} };
@@ -106,7 +108,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
         return getHelplineResponse(false);
     }
 
-    // ── 4. INITIAL STATE FALLBACK ────────────────────────────────────────────
+    // ── 5. INITIAL STATE FALLBACK ────────────────────────────────────────────
     if (!CONVERSATION_STATES[phoneKey]) {
         CONVERSATION_STATES[phoneKey] = { step: 'SELECT_LANGUAGE', data: {} };
         return getLanguageMenu();
@@ -115,7 +117,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
     const state = CONVERSATION_STATES[phoneKey];
     const isTelugu = state.lang === 'te';
 
-    // ── 5. STATE MACHINE ─────────────────────────────────────────────────────
+    // ── 6. STATE MACHINE ─────────────────────────────────────────────────────
     switch (state.step) {
 
         // --- STEP 1: SELECT LANGUAGE ---
@@ -131,7 +133,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
             } else {
                 return {
                     type: 'INTERACTIVE_BUTTONS',
-                    text: `Please select your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:`,
+                    text: `Please select your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:\n\n🌐 ${WEBSITE_URL}`,
                     buttons: [
                         { id: '1', text: '🇬🇧 English' },
                         { id: '2', text: '🇮🇳 తెలుగు' }
@@ -227,8 +229,8 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
                 return {
                     type: 'TEXT',
                     text: isTelugu
-                        ? `🤝 *AMPLR HEALTH - భాగస్వామ్య నమోదు*\n----------------------------------------\n🩺 *విభాగం*: *${partnerObj.name}*\n🔖 *రిఫరెన్స్ ID*: *${partnerRefId}*\n\nAMPLR HEALTH నెట్‌వర్క్‌లో చేరడానికి ఆసక్తి చూపినందుకు ధన్యవాదాలు! 🏥\n\n👉 *అధికారిక భాగస్వామ్య దరఖాస్తు ఫారమ్*:\n${partnerObj.url}\n\n📝 *గమనిక*: దయచేసి పై లింక్ ఓపెన్ చేసి వివరాలు నమోదు చేయండి. మా ఆన్‌బోర్డింగ్ బృందం 24 గంటల్లో మిమ్మల్ని సంప్రదిస్తుంది.\n----------------------------------------\n📞 హెల్ప్‌లైన్: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* లేదా *Hi* టైప్ చేయండి.`
-                        : `🤝 *AMPLR HEALTH - PARTNER ONBOARDING*\n----------------------------------------\n🩺 *Category*: *${partnerObj.name}*\n🔖 *Reference ID*: *${partnerRefId}*\n\nThank you for choosing to partner with AMPLR HEALTH! 🏥\n\n👉 *Official Partner Application Form*:\n${partnerObj.url}\n\n📝 *Note*: Please click the Google Form link above and submit your credentials. Our onboarding team will contact you within 24 hours.\n----------------------------------------\n📞 Partner Desk: *${HELPLINE}*\n↩️ Reply *0* or *Hi* for Main Menu.`
+                        ? `🤝 *AMPLR HEALTH - భాగస్వామ్య నమోదు*\n----------------------------------------\n🩺 *విభాగం*: *${partnerObj.name}*\n🔖 *రిఫరెన్స్ ID*: *${partnerRefId}*\n\nAMPLR HEALTH నెట్‌వర్క్‌లో చేరడానికి ఆసక్తి చూపినందుకు ధన్యవాదాలు! 🏥\n\n👉 *అధికారిక భాగస్వామ్య దరఖాస్తు ఫారమ్*:\n${partnerObj.url}\n\n📝 *గమనిక*: దయచేసి పై లింక్ ఓపెన్ చేసి వివరాలు నమోదు చేయండి. మా ఆన్‌బోర్డింగ్ బృందం 24 గంటల్లో మిమ్మల్ని సంప్రదిస్తుంది.\n----------------------------------------\n🌐 వెబ్‌సైట్: ${WEBSITE_URL}\n📞 హెల్ప్‌లైన్: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* లేదా *Hi* టైప్ చేయండి.`
+                        : `🤝 *AMPLR HEALTH - PARTNER ONBOARDING*\n----------------------------------------\n🩺 *Category*: *${partnerObj.name}*\n🔖 *Reference ID*: *${partnerRefId}*\n\nThank you for choosing to partner with AMPLR HEALTH! 🏥\n\n👉 *Official Partner Application Form*:\n${partnerObj.url}\n\n📝 *Note*: Please click the Google Form link above and submit your credentials. Our onboarding team will contact you within 24 hours.\n----------------------------------------\n🌐 Official Website: ${WEBSITE_URL}\n📞 Partner Desk: *${HELPLINE}*\n↩️ Reply *0* or *Hi* for Main Menu.`
                 };
             }
 
@@ -249,7 +251,7 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 function getLanguageMenu() {
     return {
         type: 'INTERACTIVE_BUTTONS',
-        text: `🏥 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nPlease choose your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:`,
+        text: `🏥 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nPlease choose your preferred language:\nదయచేసి మీ భాషను ఎంచుకోండి:\n\n🌐 Official Website: ${WEBSITE_URL}`,
         buttons: [
             { id: '1', text: '🇬🇧 English' },
             { id: '2', text: '🇮🇳 తెలుగు' }
@@ -260,11 +262,10 @@ function getLanguageMenu() {
 function getMainMenuEnglish() {
     return {
         type: 'INTERACTIVE_BUTTONS',
-        text: `🏥 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can our healthcare team assist you today?\n\n1️⃣ 💰 *Pricing & Tariff* (View rates for Doctor, Nursing, Ambulance, Lab & more)\n2️⃣ 🤝 *Become a Healthcare Partner* (Join our clinical network - Form Links)\n3️⃣ 📞 *24/7 Helpline & Support* (Speak to Care Coordinator)\n----------------------------------------\n👇 *Tap a button below or reply 1, 2, 3:*`,
+        text: `🏥 *Welcome to AMPLR HEALTH*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nHow can our healthcare team assist you today?\n\n1️⃣ 💰 *Pricing & Tariff* (Doctor, Nursing, Ambulance, Lab, Physio & ECG rates)\n2️⃣ 🤝 *Become a Healthcare Partner* (Join our clinical network - Form Links)\n----------------------------------------\n🌐 *Official Website & Online Booking*:\n${WEBSITE_URL}\n📞 *24/7 Helpline*: *${HELPLINE}*\n----------------------------------------\n👇 *Tap a button below or reply 1 or 2:*`,
         buttons: [
             { id: '1', text: '💰 Pricing & Tariff' },
-            { id: '2', text: '🤝 Become a Partner' },
-            { id: '3', text: '📞 24/7 Helpline' }
+            { id: '2', text: '🤝 Become a Partner' }
         ]
     };
 }
@@ -272,11 +273,10 @@ function getMainMenuEnglish() {
 function getMainMenuTelugu() {
     return {
         type: 'INTERACTIVE_BUTTONS',
-        text: `🏥 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 💰 *ధరల జాబితా (Pricing & Tariff)*\n2️⃣ 🤝 *భాగస్వామి అవ్వండి (Become a Partner)*\n3️⃣ 📞 *24/7 హెల్ప్‌లైన్ (Helpline & Support)*\n----------------------------------------\n👇 *క్రింది బటన్ నొక్కండి లేదా 1, 2, 3 రిప్లై ఇవ్వండి:*`,
+        text: `🏥 *AMPLR HEALTH కు స్వాగతం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nఈ రోజు మీకు ఎలా సహాయం చేయగలము?\n\n1️⃣ 💰 *ధరల జాబితా (Pricing & Tariff)* (డాక్టర్, నర్సింగ్, అంబులెన్స్, ల్యాబ్ రేట్లు)\n2️⃣ 🤝 *భాగస్వామి అవ్వండి (Become a Partner)* (రిజిస్ట్రేషన్ ఫారమ్ లింకులు)\n----------------------------------------\n🌐 *అధికారిక వెబ్‌సైట్ & ఆన్‌లైన్ బుకింగ్*:\n${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n👇 *క్రింది బటన్ నొక్కండి లేదా 1 లేదా 2 రిప్లై ఇవ్వండి:*`,
         buttons: [
             { id: '1', text: '💰 ధరల వివరాలు' },
-            { id: '2', text: '🤝 భాగస్వామ్యం' },
-            { id: '3', text: '📞 హెల్ప్‌లైన్' }
+            { id: '2', text: '🤝 భాగస్వామ్యం' }
         ]
     };
 }
@@ -285,8 +285,8 @@ function getHelplineResponse(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🏥 *AMPLR HEALTH - 24/7 హెల్ప్‌లైన్ & మద్దతు*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\n📞 అధికారిక హెల్ప్‌లైన్: *${HELPLINE}*\n⏰ సేవ సమయం: 24/7 అందుబాటులో ఉంది\n\n💬 ఏదైనా సేవ బుకింగ్ లేదా సమాచారం కోసం మా కేర్ కోఆర్డినేటర్‌ను సంప్రదించండి.\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* లేదా *Hi* రిప్లై ఇవ్వండి.`
-            : `🏥 *AMPLR HEALTH - 24/7 HELPLINE & SUPPORT*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n📞 **Official Helpline**: *${HELPLINE}*\n⏰ **Service Hours**: 24/7 Available\n\n💬 For inquiries, home care service requests, or direct coordination, our support team is available 24/7.\n----------------------------------------\n↩️ Reply *0* or *Hi* for Main Menu.`
+            ? `🏥 *AMPLR HEALTH - 24/7 హెల్ప్‌లైన్ & మద్దతు*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\n📞 అధికారిక హెల్ప్‌లైన్: *${HELPLINE}*\n⏰ సేవ సమయం: 24/7 అందుబాటులో ఉంది\n\n🌐 *ఆన్‌లైన్ బుకింగ్ & అధికారిక వెబ్‌సైట్*:\n${WEBSITE_URL}\n\n💬 ఏదైనా సేవ బుకింగ్ లేదా సమాచారం కోసం మా కేర్ కోఆర్డినేటర్‌ను నేరుగా సంప్రదించండి.\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* లేదా *Hi* రిప్లై ఇవ్వండి.`
+            : `🏥 *AMPLR HEALTH - 24/7 HELPLINE & SUPPORT*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n📞 **Official Helpline**: *${HELPLINE}*\n⏰ **Service Hours**: 24/7 Available\n\n🌐 **Official Website & Online Booking**:\n${WEBSITE_URL}\n\n💬 For instant booking, specialist consultations, or queries, visit our website or call our 24/7 team.\n----------------------------------------\n↩️ Reply *0* or *Hi* for Main Menu.`
     };
 }
 
@@ -297,7 +297,7 @@ function getHelplineResponse(isTelugu) {
 function getPricingMenuEnglish() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `💰 *AMPLR HEALTH - SERVICE PRICING & TARIFF*\n----------------------------------------\nPlease select a healthcare category to view official rates:\n\n1️⃣ 👨‍⚕️ *Doctor Consultation Rates* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 – ₹2,600)\n3️⃣ 🚑 *Ambulance Transport Slabs* (From ₹1,400)\n4️⃣ 🩸 *Lab & Blood Tests at Home* (From ₹200)\n5️⃣ 🧓 *Caregiver / Attendant* (₹1,200 / ₹2,000)\n6️⃣ 🏃‍♂️ *Physiotherapy & ECG at Home* (₹900 / ₹1,100)\n7️⃣ 📋 *Complete Tariff Overview* (All Services)\n----------------------------------------\n👇 *Tap 'View Rates' below or reply 1 to 7:*`,
+        text: `💰 *AMPLR HEALTH - SERVICE PRICING & TARIFF*\n----------------------------------------\nPlease select a healthcare category to view official rates:\n\n1️⃣ 👨‍⚕️ *Doctor Consultation Rates* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 – ₹2,600)\n3️⃣ 🚑 *Ambulance Transport Slabs* (From ₹1,400)\n4️⃣ 🩸 *Lab & Blood Tests at Home* (From ₹200)\n5️⃣ 🧓 *Caregiver / Attendant* (₹1,200 / ₹2,000)\n6️⃣ 🏃‍♂️ *Physiotherapy & ECG at Home* (₹900 / ₹1,100)\n7️⃣ 📋 *Complete Tariff Overview* (All Services)\n----------------------------------------\n🌐 *For direct online booking & real-time rates*:\n${WEBSITE_URL}\n----------------------------------------\n👇 *Tap 'View Rates' below or reply 1 to 7:*`,
         listTitle: '💰 View Rates',
         sections: [
             {
@@ -319,7 +319,7 @@ function getPricingMenuEnglish() {
 function getPricingMenuTelugu() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `💰 *AMPLR HEALTH - సేవల ధరల వివరాలు (Tariff)*\n----------------------------------------\nవివరమైన ధరల జాబితాను చూడటానికి ఒక విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్ ఛార్జీలు* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ఛార్జీలు* (₹200 – ₹2,600)\n3️⃣ 🚑 *అంబులెన్స్ రేట్లు* (₹1,400 నుండి)\n4️⃣ 🩸 *ల్యాబ్ & రక్త పరీక్షలు* (₹200 నుండి)\n5️⃣ 🧓 *కేర్‌టేకర్ / సంరక్షకులు* (₹1,200 / ₹2,000)\n6️⃣ 🏃‍♂️ *ఫిజియోథెరపీ & ECG* (₹900 / ₹1,100)\n7️⃣ 📋 *మొత్తం సేవల ధరల సారాంశం*\n----------------------------------------\n👇 *క్రింది 'ధరలు చూడండి' నొక్కండి లేదా 1-7 రిప్లై ఇవ్వండి:*`,
+        text: `💰 *AMPLR HEALTH - సేవల ధరల వివరాలు (Tariff)*\n----------------------------------------\nవివరమైన ధరల జాబితాను చూడటానికి ఒక విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ కన్సల్టేషన్ ఛార్జీలు* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ఛార్జీలు* (₹200 – ₹2,600)\n3️⃣ 🚑 *అంబులెన్స్ రేట్లు* (₹1,400 నుండి)\n4️⃣ 🩸 *ల్యాబ్ & రక్త పరీక్షలు* (₹200 నుండి)\n5️⃣ 🧓 *కేర్‌టేకర్ / సంరక్షకులు* (₹1,200 / ₹2,000)\n6️⃣ 🏃‍♂️ *ఫిజియోథెరపీ & ECG* (₹900 / ₹1,100)\n7️⃣ 📋 *మొత్తం సేవల ధరల సారాంశం*\n----------------------------------------\n🌐 *ప్రత్యక్ష ఆన్‌లైన్ బుకింగ్ & రియల్ టైమ్ రేట్ల కోసం*:\n${WEBSITE_URL}\n----------------------------------------\n👇 *క్రింది 'ధరలు చూడండి' నొక్కండి లేదా 1-7 రిప్లై ఇవ్వండి:*`,
         listTitle: '💰 ధరలు చూడండి',
         sections: [
             {
@@ -342,8 +342,8 @@ function getDoctorPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `👨‍⚕️ *AMPLR HEALTH - డాక్టర్ సంప్రదింపుల ధరలు*\n----------------------------------------\nనిపుణుల టెలి-కన్సల్టేషన్ రేట్లు:\n\n• *డెర్మటాలజీ / ఆర్థోపెడిక్స్ / ENT / సైకియాట్రీ*: ₹399\n• *పల్మోనాలజీ / యూరాలజీ / జనరల్ సర్జరీ / IVF*: ₹599\n• *గ్యాస్ట్రో / కార్డియాలజీ / న్యూరాలజీ / ఎండోక్రైన్*: ₹599\n• *ఆంకాలజీ (క్యాన్సర్ నిపుణులు)*: ₹799\n• *ఆయుర్వేదం / హోమియోపతి*: ₹299\n• *యునాని / సిద్ధ / యోగా & నేచురోపతి*: ₹299\n• *ఫెర్టిలిటీ & క్రానిక్ కేర్*: ₹499\n• *న్యూట్రిషనిస్ట్ & క్లినికల్ డైట్*: ₹299\n----------------------------------------\n📞 అపాయింట్‌మెంట్ కోసం హెల్ప్‌లైన్‌కు కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `👨‍⚕️ *AMPLR HEALTH - DOCTOR CONSULTATION TARIFF*\n----------------------------------------\nOfficial Tele-Consultation Specialty Rates:\n\n• *DERM / ORTHO / PSY / ENT*: ₹399\n• *PULMO / MS.SURG / URO / IVF*: ₹599\n• *GASTRO / CARDIO / ENDO / NEURO*: ₹599\n• *ONCO (Oncology / Cancer Specialist)*: ₹799\n• *AYUR / PANCHA / HOMEO*: ₹299\n• *UNANI / SIDDHA / YOGA / NATUROPATHY*: ₹299\n• *FERTILITY / CHRONIC CARE*: ₹499\n• *NUTRITIONIST / CLINICAL DIET*: ₹299\n----------------------------------------\n📞 To consult or book, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `👨‍⚕️ *AMPLR HEALTH - డాక్టర్ సంప్రదింపుల ధరలు*\n----------------------------------------\nనిపుణుల టెలి-కన్సల్టేషన్ రేట్లు:\n\n• *డెర్మటాలజీ / ఆర్థోపెడిక్స్ / ENT / సైకియాట్రీ*: ₹399\n• *పల్మోనాలజీ / యూరాలజీ / జనరల్ సర్జరీ / IVF*: ₹599\n• *గ్యాస్ట్రో / కార్డియాలజీ / న్యూరాలజీ / ఎండోక్రైన్*: ₹599\n• *ఆంకాలజీ (క్యాన్సర్ నిపుణులు)*: ₹799\n• *ఆయుర్వేదం / హోమియోపతి*: ₹299\n• *యునాని / సిద్ధ / యోగా & నేచురోపతి*: ₹299\n• *ఫెర్టిలిటీ & క్రానిక్ కేర్*: ₹499\n• *న్యూట్రిషనిస్ట్ & క్లినికల్ డైట్*: ₹299\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `👨‍⚕️ *AMPLR HEALTH - DOCTOR CONSULTATION TARIFF*\n----------------------------------------\nOfficial Tele-Consultation Specialty Rates:\n\n• *DERM / ORTHO / PSY / ENT*: ₹399\n• *PULMO / MS.SURG / URO / IVF*: ₹599\n• *GASTRO / CARDIO / ENDO / NEURO*: ₹599\n• *ONCO (Oncology / Cancer Specialist)*: ₹799\n• *AYUR / PANCHA / HOMEO*: ₹299\n• *UNANI / SIDDHA / YOGA / NATUROPATHY*: ₹299\n• *FERTILITY / CHRONIC CARE*: ₹499\n• *NUTRITIONIST / CLINICAL DIET*: ₹299\n----------------------------------------\n🌐 *Book Directly Online*: ${WEBSITE_URL}\n📞 *24/7 Support Line*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -351,8 +351,8 @@ function getNursingPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `👩‍⚕️ *AMPLR HEALTH - నర్సింగ్ సేవల ధరలు*\n----------------------------------------\nఇంటి వద్ద క్లినికల్ ప్రొసీజర్స్:\n• బీపీ & బ్లడ్ షుగర్ చెకప్: ₹200\n• ఇంజెక్షన్ / IV పుష్ (క్యాన్యులా): ₹300\n• IV ఫ్లూయిడ్ / సెలైన్ డ్రిప్: ₹500\n• గాయం డ్రెస్సింగ్ & క్యాథెటర్ కేర్: ₹700\n• వాస్కులైటిస్ & క్లిష్టమైన అల్సర్ కేర్: ₹900\n• మంచంపై ఉన్న రోగుల సంరక్షణ: ₹700\n\nనర్సింగ్ డెడికేటెడ్ షిఫ్ట్‌లు:\n• 1 నుండి 3 గంటల షిఫ్ట్: ₹700\n• 1 నుండి 6 గంటల షిఫ్ట్: ₹1,400\n• 1 నుండి 12 గంటల డే/నైట్ షిఫ్ట్: ₹2,600\n----------------------------------------\n📞 నర్సింగ్ సేవల కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `👩‍⚕️ *AMPLR HEALTH - HOME NURSING PROCEDURES & TARIFF*\n----------------------------------------\nClinical Visit Procedures:\n• BP & Blood Sugar Check: ₹200\n• Injection / IV Push (Cannula): ₹300\n• IV Fluid / Saline Infusion: ₹500\n• Wound Dressing & Foley Catheter: ₹700\n• Vasculitis & Complex Ulcer Care: ₹900\n• Bedridden Patient Hygiene & Care: ₹700\n\nDedicated Hourly Nurse Shifts:\n• 1 to 3 Hours Shift: ₹700\n• 1 to 6 Hours Shift: ₹1,400\n• 1 to 12 Hours Day/Night Shift: ₹2,600\n----------------------------------------\n📞 To schedule a nurse, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `👩‍⚕️ *AMPLR HEALTH - నర్సింగ్ సేవల ధరలు*\n----------------------------------------\nఇంటి వద్ద క్లినికల్ ప్రొసీజర్స్:\n• బీపీ & బ్లడ్ షుగర్ చెకప్: ₹200\n• ఇంజెక్షన్ / IV పుష్ (క్యాన్యులా): ₹300\n• IV ఫ్లూయిడ్ / సెలైన్ డ్రిప్: ₹500\n• గాయం డ్రెస్సింగ్ & క్యాథెటర్ కేర్: ₹700\n• వాస్కులైటిస్ & క్లిష్టమైన అల్సర్ కేర్: ₹900\n• మంచంపై ఉన్న రోగుల సంరక్షణ: ₹700\n\nనర్సింగ్ డెడికేటెడ్ షిఫ్ట్‌లు:\n• 1 నుండి 3 గంటల షిఫ్ట్: ₹700\n• 1 నుండి 6 గంటల షిఫ్ట్: ₹1,400\n• 1 నుండి 12 గంటల డే/నైట్ షిఫ్ట్: ₹2,600\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `👩‍⚕️ *AMPLR HEALTH - HOME NURSING PROCEDURES & TARIFF*\n----------------------------------------\nClinical Visit Procedures:\n• BP & Blood Sugar Check: ₹200\n• Injection / IV Push (Cannula): ₹300\n• IV Fluid / Saline Infusion: ₹500\n• Wound Dressing & Foley Catheter: ₹700\n• Vasculitis & Complex Ulcer Care: ₹900\n• Bedridden Patient Hygiene & Care: ₹700\n\nDedicated Hourly Nurse Shifts:\n• 1 to 3 Hours Shift: ₹700\n• 1 to 6 Hours Shift: ₹1,400\n• 1 to 12 Hours Day/Night Shift: ₹2,600\n----------------------------------------\n🌐 *Book Directly Online*: ${WEBSITE_URL}\n📞 *24/7 Support Line*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -360,8 +360,8 @@ function getAmbulancePricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🚑 *AMPLR HEALTH - 24/7 అంబులెన్స్ ఛార్జీలు*\n----------------------------------------\n1️⃣ *తూఫాన్ / ఓమ్ని A/C (రోగి రవాణా)*:\n• 1-10 కి.మీ: ₹1,400\n• 1-50 కి.మీ: ₹4,000\n• 1-100 కి.మీ: ₹6,000\n• 1-200 కి.మీ: ₹10,500\n\n2️⃣ *టెంపో ట్రావెలర్ A/C*:\n• 1-10 కి.మీ: ₹1,800\n• 1-50 కి.మీ: ₹5,500\n• 1-100 కి.మీ: ₹9,500\n• 1-200 కి.మీ: ₹16,000\n\n➕ *మెడికల్ పరికరాల అదనపు ఛార్జీలు*:\n• పారామెడిక్ సిబ్బంది: +₹1,500\n• ఆక్సిజన్ సపోర్ట్: +₹1,500\n• ICU వెంటిలేటర్ సదుపాయం: +₹4,500\n----------------------------------------\n📞 అత్యవసర అంబులెన్స్ కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `🚑 *AMPLR HEALTH - 24/7 AMBULANCE TARIFF*\n----------------------------------------\n1️⃣ *Toofan / Omni A/C (Patient Transport)*:\n• 1-10 km: ₹1,400\n• 1-50 km: ₹4,000\n• 1-100 km: ₹6,000\n• 1-200 km: ₹10,500\n\n2️⃣ *Tempo Traveller A/C*:\n• 1-10 km: ₹1,800\n• 1-50 km: ₹5,500\n• 1-100 km: ₹9,500\n• 1-200 km: ₹16,000\n\n➕ *Medical Configurations*:\n• Paramedic Staff: +₹1,500\n• Oxygen Support: +₹1,500\n• ICU Ventilator: +₹4,500\n----------------------------------------\n📞 24/7 Ambulance Dispatch: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `🚑 *AMPLR HEALTH - 24/7 అంబులెన్స్ ఛార్జీలు*\n----------------------------------------\n1️⃣ *తూఫాన్ / ఓమ్ని A/C (రోగి రవాణా)*:\n• 1-10 కి.మీ: ₹1,400\n• 1-50 కి.మీ: ₹4,000\n• 1-100 కి.మీ: ₹6,000\n• 1-200 కి.మీ: ₹10,500\n\n2️⃣ *టెంపో ట్రావెలర్ A/C*:\n• 1-10 కి.మీ: ₹1,800\n• 1-50 కి.మీ: ₹5,500\n• 1-100 కి.మీ: ₹9,500\n• 1-200 కి.మీ: ₹16,000\n\n➕ *మెడికల్ పరికరాల అదనపు ఛార్జీలు*:\n• పారామెడిక్ సిబ్బంది: +₹1,500\n• ఆక్సిజన్ సపోర్ట్: +₹1,500\n• ICU వెంటిలేటర్ సదుపాయం: +₹4,500\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 అంబులెన్స్ హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `🚑 *AMPLR HEALTH - 24/7 AMBULANCE TARIFF*\n----------------------------------------\n1️⃣ *Toofan / Omni A/C (Patient Transport)*:\n• 1-10 km: ₹1,400\n• 1-50 km: ₹4,000\n• 1-100 km: ₹6,000\n• 1-200 km: ₹10,500\n\n2️⃣ *Tempo Traveller A/C*:\n• 1-10 km: ₹1,800\n• 1-50 km: ₹5,500\n• 1-100 km: ₹9,500\n• 1-200 km: ₹16,000\n\n➕ *Medical Configurations*:\n• Paramedic Staff: +₹1,500\n• Oxygen Support: +₹1,500\n• ICU Ventilator: +₹4,500\n----------------------------------------\n🌐 *Book Directly Online*: ${WEBSITE_URL}\n📞 *24/7 Ambulance Dispatch*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -369,8 +369,8 @@ function getLabPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🩸 *AMPLR HEALTH - ల్యాబ్ రక్త పరీక్షలు*\n----------------------------------------\nసర్టిఫైడ్ ఫ్లెబోటోమిస్ట్ ద్వారా ఇంటి వద్ద నమూనా సేకరణ:\n\n• బ్లడ్ షుగర్ (Fasting / PP): ₹200\n• కంప్లీట్ బ్లడ్ పిక్చర్ (CBC): ₹350\n• లిపిడ్ ప్రొఫైల్ (కొలెస్ట్రాల్): ₹550\n• థైరాయిడ్ ప్రొఫైల్ (T3, T4, TSH): ₹500\n• లివర్ ఫంక్షన్ టెస్ట్ (LFT): ₹650\n• కిడ్నీ ఫంక్షన్ టెస్ట్ (KFT): ₹650\n• HbA1c (3 నెలల షుగర్ టెస్ట్): ₹500\n• సంపూర్ణ బాడీ చెకప్ ప్యాకేజీ: ₹1,299 నుండి ప్రారంభం\n_(₹800 పైన ఉచిత హోమ్ కలెక్షన్)_\n----------------------------------------\n📞 రక్త పరీక్ష బుకింగ్ కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `🩸 *AMPLR HEALTH - LAB BLOOD COLLECTION AT HOME*\n----------------------------------------\nDoorstep sample collection by certified phlebotomists:\n\n• Blood Sugar (Fasting / PP): ₹200\n• Complete Blood Picture (CBC): ₹350\n• Lipid Profile (Cholesterol): ₹550\n• Thyroid Profile (T3, T4, TSH): ₹500\n• Liver Function Test (LFT): ₹650\n• Kidney Function Test (KFT): ₹650\n• HbA1c (3-Month Average Sugar): ₹500\n• Full Body Health Checkup Package: From ₹1,299\n_(Free doorstep collection on orders above ₹800)_\n----------------------------------------\n📞 To schedule lab test, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `🩸 *AMPLR HEALTH - ల్యాబ్ రక్త పరీక్షలు*\n----------------------------------------\nసర్టిఫైడ్ ఫ్లెబోటోమిస్ట్ ద్వారా ఇంటి వద్ద నమూనా సేకరణ:\n\n• బ్లడ్ షుగర్ (Fasting / PP): ₹200\n• కంప్లీట్ బ్లడ్ పిక్చర్ (CBC): ₹350\n• లిపిడ్ ప్రొఫైల్ (కొలెస్ట్రాల్): ₹550\n• థైరాయిడ్ ప్రొఫైల్ (T3, T4, TSH): ₹500\n• లివర్ ఫంక్షన్ టెస్ట్ (LFT): ₹650\n• కిడ్నీ ఫంక్షన్ టెస్ట్ (KFT): ₹650\n• HbA1c (3 నెలల షుగర్ టెస్ట్): ₹500\n• సంపూర్ణ బాడీ చెకప్ ప్యాకేజీ: ₹1,299 నుండి ప్రారంభం\n_(₹800 పైన ఉచిత హోమ్ కలెక్షన్)_\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `🩸 *AMPLR HEALTH - LAB BLOOD COLLECTION AT HOME*\n----------------------------------------\nDoorstep sample collection by certified phlebotomists:\n\n• Blood Sugar (Fasting / PP): ₹200\n• Complete Blood Picture (CBC): ₹350\n• Lipid Profile (Cholesterol): ₹550\n• Thyroid Profile (T3, T4, TSH): ₹500\n• Liver Function Test (LFT): ₹650\n• Kidney Function Test (KFT): ₹650\n• HbA1c (3-Month Average Sugar): ₹500\n• Full Body Health Checkup Package: From ₹1,299\n_(Free doorstep collection on orders above ₹800)_\n----------------------------------------\n🌐 *Book Lab Tests Online*: ${WEBSITE_URL}\n📞 *24/7 Support Line*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -378,8 +378,8 @@ function getCaregiverPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🧓 *AMPLR HEALTH - సంరక్షకులు / కేర్‌టేకర్ సేవలు*\n----------------------------------------\nవృద్ధులు మరియు మంచంపై ఉన్న రోగులకు నిరంతర సహాయం:\n\n• 12 గంటల డే లేదా నైట్ షిఫ్ట్: రోజుకు ₹1,200\n• 24 గంటల లైవ్-ఇన్ సంరక్షణ: రోజుకు ₹2,000\n• నెలవారీ ప్యాకేజీలు: ప్రత్యేక తగ్గింపుతో అందుబాటులో ఉన్నాయి\n\nసేవలు: వ్యక్తిగత పరిశుభ్రత, మొబిలిటీ మద్దతు, ఆహారం తినిపించడం, మందుల రిమైండర్లు.\n----------------------------------------\n📞 కేర్‌టేకర్ సేవల కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `🧓 *AMPLR HEALTH - CAREGIVER & BEDSIDE ATTENDANT*\n----------------------------------------\nDedicated home care for elderly & recovering patients:\n\n• 12-Hour Day / Night Shift: ₹1,200 per day\n• 24-Hour Live-in Care: ₹2,000 per day\n• Monthly Long-Term Plans: Custom discounted rates\n\nIncludes: Personal hygiene, mobility assistance, feeding support, medication reminders, vital monitoring.\n----------------------------------------\n📞 To request a caregiver, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `🧓 *AMPLR HEALTH - సంరక్షకులు / కేర్‌టేకర్ సేవలు*\n----------------------------------------\nవృద్ధులు మరియు మంచంపై ఉన్న రోగులకు నిరంతర సహాయం:\n\n• 12 గంటల డే లేదా నైట్ షిఫ్ట్: రోజుకు ₹1,200\n• 24 గంటల లైవ్-ఇన్ సంరక్షణ: రోజుకు ₹2,000\n• నెలవారీ ప్యాకేజీలు: ప్రత్యేక తగ్గింపుతో అందుబాటులో ఉన్నాయి\n\nసేవలు: వ్యక్తిగత పరిశుభ్రత, మొబిలిటీ మద్దతు, ఆహారం తినిపించడం, మందుల రిమైండర్లు.\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `🧓 *AMPLR HEALTH - CAREGIVER & BEDSIDE ATTENDANT*\n----------------------------------------\nDedicated home care for elderly & recovering patients:\n\n• 12-Hour Day / Night Shift: ₹1,200 per day\n• 24-Hour Live-in Care: ₹2,000 per day\n• Monthly Long-Term Plans: Custom discounted rates\n\nIncludes: Personal hygiene, mobility assistance, feeding support, medication reminders, vital monitoring.\n----------------------------------------\n🌐 *Book Directly Online*: ${WEBSITE_URL}\n📞 *24/7 Support Line*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -387,8 +387,8 @@ function getPhysioEcgPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🏃‍♂️ *ఫిజియోథెరపీ & 💓 ఇంటి వద్ద ECG పరీక్ష*\n----------------------------------------\n• 🏃‍♂️ *ఫిజియోథెరపీ సెషన్*: ₹900 / 45 నిమిషాల విజిట్\n  (పక్షవాతం, ఆపరేషన్ తర్వాత రికవరీ, నడుము/కీళ్ల నొప్పుల చికిత్స)\n\n• 💓 *12-లీడ్ డిజిటల్ ECG*: ₹1,100 / టెస్ట్\n  (ఇంటి వద్దే తక్షణ పరీక్ష మరియు కార్డియాలజిస్ట్ వెరిఫైడ్ రిపోర్ట్)\n----------------------------------------\n📞 బుకింగ్ కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `🏃‍♂️ *PHYSIOTHERAPY & 💓 ECG AT HOME*\n----------------------------------------\n• 🏃‍♂️ *Physiotherapy Session*: ₹900 per 45-min visit\n  (Stroke rehab, post-surgery recovery, paralysis, chronic joint/back pain)\n\n• 💓 *12-Lead Digital ECG*: ₹1,100 per test\n  (Conducted at your doorstep with instant cardiologist-verified digital report)\n----------------------------------------\n📞 To schedule a visit, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `🏃‍♂️ *ఫిజియోథెరపీ & 💓 ఇంటి వద్ద ECG పరీక్ష*\n----------------------------------------\n• 🏃‍♂️ *ఫిజియోథెరపీ సెషన్*: ₹900 / 45 నిమిషాల విజిట్\n  (పక్షవాతం, ఆపరేషన్ తర్వాత రికవరీ, నడుము/కీళ్ల నొప్పుల చికిత్స)\n\n• 💓 *12-లీడ్ డిజిటల్ ECG*: ₹1,100 / టెస్ట్\n  (ఇంటి వద్దే తక్షణ పరీక్ష మరియు కార్డియాలజిస్ట్ వెరిఫైడ్ రిపోర్ట్)\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `🏃‍♂️ *PHYSIOTHERAPY & 💓 ECG AT HOME*\n----------------------------------------\n• 🏃‍♂️ *Physiotherapy Session*: ₹900 per 45-min visit\n  (Stroke rehab, post-surgery recovery, paralysis, chronic joint/back pain)\n\n• 💓 *12-Lead Digital ECG*: ₹1,100 per test\n  (Conducted at your doorstep with instant cardiologist-verified digital report)\n----------------------------------------\n🌐 *Book Directly Online*: ${WEBSITE_URL}\n📞 *24/7 Support Line*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -396,8 +396,8 @@ function getCompletePricingOverview(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `📋 *AMPLR HEALTH - సేవల ధరల పూర్తి సారాంశం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\n• 👨‍⚕️ *డాక్టర్ సంప్రదింపులు*: ₹299 – ₹799\n• 👩‍⚕️ *నర్సింగ్ సేవలు*: ₹200 – ₹900 (షిఫ్ట్‌లు: ₹700 – ₹2,600)\n• 🚑 *అంబులెన్స్ సేవలు*: ₹1,400 నుండి (O2/ICU అందుబాటులో ఉంది)\n• 🩸 *ల్యాబ్ రక్త పరీక్షలు*: ₹200 నుండి (హెల్త్ ప్యాకేజీలు ₹1,299)\n• 🧓 *సంరక్షకులు / కేర్‌టేకర్*: ₹1,200 (12 గంటలు) / ₹2,000 (24 గంటలు)\n• 🏃‍♂️ *ఫిజియోథెరపీ*: ₹900 / సెషన్\n• 💓 *ఇంటి వద్ద ECG*: ₹1,100 / టెస్ట్\n----------------------------------------\n📞 ఏదైనా సేవ బుకింగ్ కోసం కాల్ చేయండి: *${HELPLINE}*\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
-            : `📋 *AMPLR HEALTH - COMPLETE TARIFF OVERVIEW*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n• 👨‍⚕️ *Doctor Tele-Consult*: ₹299 – ₹799 (by specialty)\n• 👩‍⚕️ *Nursing Procedures*: ₹200 – ₹900 (Shifts: ₹700 – ₹2,600)\n• 🚑 *24/7 Ambulance*: From ₹1,400 (O2 & ICU Ventilator options)\n• 🩸 *Lab Blood Tests*: From ₹200 (Checkups from ₹1,299)\n• 🧓 *Caregiver / Attendant*: ₹1,200 (12h) / ₹2,000 (24h)\n• 🏃‍♂️ *Physiotherapy at Home*: ₹900 / session\n• 💓 *12-Lead Doorstep ECG*: ₹1,100 / test\n----------------------------------------\n📞 To book any service, call 24/7: *${HELPLINE}*\n↩️ Reply *0* for Main Menu.`
+            ? `📋 *AMPLR HEALTH - సేవల ధరల పూర్తి సారాంశం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\n• 👨‍⚕️ *డాక్టర్ సంప్రదింపులు*: ₹299 – ₹799\n• 👩‍⚕️ *నర్సింగ్ సేవలు*: ₹200 – ₹900 (షిఫ్ట్‌లు: ₹700 – ₹2,600)\n• 🚑 *అంబులెన్స్ సేవలు*: ₹1,400 నుండి (O2/ICU అందుబాటులో ఉంది)\n• 🩸 *ల్యాబ్ రక్త పరీక్షలు*: ₹200 నుండి (హెల్త్ ప్యాకేజీలు ₹1,299)\n• 🧓 *సంరక్షకులు / కేర్‌టేకర్*: ₹1,200 (12 గంటలు) / ₹2,000 (24 గంటలు)\n• 🏃‍♂️ *ఫిజియోథెరపీ*: ₹900 / సెషన్\n• 💓 *ఇంటి వద్ద ECG*: ₹1,100 / టెస్ట్\n----------------------------------------\n🌐 *ఆన్‌లైన్ బుకింగ్ & లైవ్ రేట్లు*:\n${WEBSITE_URL}\n\n📞 *24/7 అధికారిక హెల్ప్‌లైన్*: *${HELPLINE}*\n----------------------------------------\n↩️ ప్రధాన మెనూ కోసం *0* రిప్లై ఇవ్వండి.`
+            : `📋 *AMPLR HEALTH - COMPLETE TARIFF OVERVIEW*\n_Brings Hospital Care to Your Home_\n----------------------------------------\n• 👨‍⚕️ *Doctor Tele-Consult*: ₹299 – ₹799 (by specialty)\n• 👩‍⚕️ *Nursing Procedures*: ₹200 – ₹900 (Shifts: ₹700 – ₹2,600)\n• 🚑 *24/7 Ambulance*: From ₹1,400 (O2 & ICU Ventilator options)\n• 🩸 *Lab Blood Tests*: From ₹200 (Checkups from ₹1,299)\n• 🧓 *Caregiver / Attendant*: ₹1,200 (12h) / ₹2,000 (24h)\n• 🏃‍♂️ *Physiotherapy at Home*: ₹900 / session\n• 💓 *12-Lead Doorstep ECG*: ₹1,100 / test\n----------------------------------------\n🌐 *Book Directly Online & View Real-Time Rates*:\n${WEBSITE_URL}\n\n📞 *24/7 Official Helpline*: *${HELPLINE}*\n----------------------------------------\n↩️ Reply *0* for Main Menu.`
     };
 }
 
@@ -408,7 +408,7 @@ function getCompletePricingOverview(isTelugu) {
 function getPartnerProfessionMenu() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `🤝 *AMPLR HEALTH PARTNER NETWORK*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nPartner with us to provide healthcare services across the region.\nPlease select your profession to receive the application form link:\n\n1️⃣ 🩸 *Lab-Blood Collection (Phlebotomist)*\n2️⃣ 👩‍⚕️ *Nursing Professional (GNM/B.Sc)*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapist (BPT/MPT)*\n5️⃣ 💓 *ECG Technician*\n6️⃣ 🚑 *Ambulance Fleet Partner*\n7️⃣ 👨‍⚕️ *Doctor Consultation Specialist*\n8️⃣ 🏥 *Hospital / Clinic Partnership*\n----------------------------------------\n👇 *Tap 'Select Profession' below or reply 1 to 8:*`,
+        text: `🤝 *AMPLR HEALTH PARTNER NETWORK*\n_Brings Hospital Care to Your Home_\n----------------------------------------\nPartner with us to provide healthcare services across the region.\nPlease select your profession to receive the application form link:\n\n1️⃣ 🩸 *Lab-Blood Collection (Phlebotomist)*\n2️⃣ 👩‍⚕️ *Nursing Professional (GNM/B.Sc)*\n3️⃣ 🧓 *Caregiver / Caretaker*\n4️⃣ 🏃‍♂️ *Physiotherapist (BPT/MPT)*\n5️⃣ 💓 *ECG Technician*\n6️⃣ 🚑 *Ambulance Fleet Partner*\n7️⃣ 👨‍⚕️ *Doctor Consultation Specialist*\n8️⃣ 🏥 *Hospital / Clinic Partnership*\n----------------------------------------\n🌐 Official Website: ${WEBSITE_URL}\n----------------------------------------\n👇 *Tap 'Select Profession' below or reply 1 to 8:*`,
         listTitle: '🤝 Select Category',
         sections: [
             {
@@ -431,7 +431,7 @@ function getPartnerProfessionMenu() {
 function getPartnerProfessionMenuTelugu() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `🤝 *AMPLR HEALTH భాగస్వామ్య నెట్‌వర్క్*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nమా ఆరోగ్య సంరక్షణ నెట్‌వర్క్‌లో చేరడానికి దరఖాస్తు ఫారమ్ లింక్ కోసం మీ విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ రక్త సేకరణ (ఫ్లెబోటోమిస్ట్)*\n2️⃣ 👩‍⚕️ *నర్సింగ్ ప్రొఫెషనల్*\n3️⃣ 🧓 *కేర్‌టేకర్ / సంరక్షకులు*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపిస్ట్*\n5️⃣ 💓 *ECG టెక్నీషియన్*\n6️⃣ 🚑 *అంబులెన్స్ భాగస్వామి / డ్రైవర్*\n7️⃣ 👨‍⚕️ *డాక్టర్ సంప్రదింపులు*\n8️⃣ 🏥 *హాస్పిటల్ / క్లినిక్ భాగస్వామ్యం*\n----------------------------------------\n👇 *క్రింది 'ఎంచుకోండి' నొక్కండి లేదా 1-8 రిప్లై ఇవ్వండి:*`,
+        text: `🤝 *AMPLR HEALTH భాగస్వామ్య నెట్‌వర్క్*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n----------------------------------------\nమా ఆరోగ్య సంరక్షణ నెట్‌వర్క్‌లో చేరడానికి దరఖాస్తు ఫారమ్ లింక్ కోసం మీ విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ రక్త సేకరణ (ఫ్లెబోటోమిస్ట్)*\n2️⃣ 👩‍⚕️ *నర్సింగ్ ప్రొఫెషనల్*\n3️⃣ 🧓 *కేర్‌టేకర్ / సంరక్షకులు*\n4️⃣ 🏃‍♂️ *ఫిజియోథెరపిస్ట్*\n5️⃣ 💓 *ECG టెక్నీషియన్*\n6️⃣ 🚑 *అంబులెన్స్ భాగస్వామి / డ్రైవర్*\n7️⃣ 👨‍⚕️ *డాక్టర్ సంప్రదింపులు*\n8️⃣ 🏥 *హాస్పిటల్ / క్లినిక్ భాగస్వామ్యం*\n----------------------------------------\n🌐 అధికారిక వెబ్‌సైట్: ${WEBSITE_URL}\n----------------------------------------\n👇 *క్రింది 'ఎంచుకోండి' నొక్కండి లేదా 1-8 రిప్లై ఇవ్వండి:*`,
         listTitle: '🤝 ఎంచుకోండి',
         sections: [
             {
