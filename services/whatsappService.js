@@ -170,3 +170,46 @@ export async function sendWhatsAppMessage(recipientPhone, messagePayload, pdfUrl
         }
     }
 }
+
+/**
+ * Send WhatsApp Broadcast / Meta Template Message via Nuke v5 API
+ * @param {string} recipientPhone - 10-digit or 12-digit phone number
+ * @param {string} templateId - Meta template ID (e.g. 'dfb')
+ * @param {string} broadcastName - Campaign/broadcast identifier name
+ */
+export async function sendWhatsAppBroadcastTemplate(recipientPhone, templateId = 'dfb', broadcastName = 'broadcast_campaign') {
+    let cleanPhone = (recipientPhone || '').toString().replace(/\D/g, '');
+    if (cleanPhone.length === 10) {
+        cleanPhone = '91' + cleanPhone;
+    }
+
+    const token = process.env.AUTOBOTCHAT_JWT_TOKEN || '';
+    const url = 'https://wa20.nuke.co.in/v5/api/index.php/addbroadcast';
+
+    const payload = {
+        brodcast_service: 'whatsapp_credits',
+        broadcast_name: broadcastName,
+        template_id: templateId,
+        contacts: cleanPhone
+    };
+
+    console.log(`[Broadcast API] Sending template '${templateId}' to ${cleanPhone}...`);
+
+    try {
+        const response = await axios.post(url, payload, {
+            headers: {
+                'content-type': 'application/json',
+                'Authorization': token
+            },
+            timeout: 10000
+        });
+
+        console.log('[Broadcast API Response]:', JSON.stringify(response.data));
+        return { status: 'success', data: response.data };
+    } catch (error) {
+        const errorData = error.response ? error.response.data : error.message;
+        console.error('[Broadcast API Error]:', errorData);
+        return { status: 'error', error: errorData };
+    }
+}
+
