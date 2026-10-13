@@ -26,9 +26,9 @@ export const DEFAULT_SERVICES = [
         category: 'caretaker',
         code: 'CARE',
         icon: 'UserCheck',
-        basePrice: 1200,
-        priceDescription: '₹1,200 / day (12 Hours) / ₹2,000 (24 Hours)',
-        slots: ['08:00 AM Start', '08:00 PM Start (Night)', '24 Hours Shift'],
+        basePrice: 0,
+        priceDescription: 'Available in 3-Hour, 8-Hour & 12-Hour shifts',
+        slots: ['3 Hours Shift', '8 Hours Shift', '12 Hours Shift'],
         description: 'Elderly assistance, Hygiene care, Feeding support, Mobility aid.',
         active: true
     },
