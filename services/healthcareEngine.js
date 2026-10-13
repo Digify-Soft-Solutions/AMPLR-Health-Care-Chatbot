@@ -174,33 +174,37 @@ export function processHealthcareMessage(userPhone, messageText, payloadData = n
 
         // --- STEP 3: PRICING CATEGORY DETAILS ---
         case 'SELECT_PRICING_CATEGORY': {
-            // 1: Doctor Consultation Rates
-            if (text === '1' || text.includes('doctor') || text.includes('డాక్టర్')) {
-                return getDoctorPricingDetails(isTelugu);
-            }
-            // 2: Home Nursing Procedures & Shifts
-            if (text === '2' || text.includes('nursing') || text.includes('nurse') || text.includes('నర్సింగ్')) {
-                return getNursingPricingDetails(isTelugu);
-            }
-            // 3: 24/7 Ambulance Fleet Slabs
-            if (text === '3' || text.includes('ambulance') || text.includes('అంబులెన్స్')) {
-                return getAmbulancePricingDetails(isTelugu);
-            }
-            // 4: Lab & Blood Tests at Home
-            if (text === '4' || text.includes('lab') || text.includes('blood') || text.includes('ల్యాబ్')) {
+            // 1: Lab & Blood Tests at Home
+            if (text === '1' || text.includes('lab') || text.includes('blood') || text.includes('ల్యాబ్')) {
                 return getLabPricingDetails(isTelugu);
             }
-            // 5: Caregiver & Bedside Attendant
-            if (text === '5' || text.includes('care') || text.includes('కేర్‌టేకర్')) {
+            // 2: Home Nursing Procedures & Shifts
+            if (text === '2' || text.includes('nursing') || text.includes('nurse') || text.includes('నర్సింగ్') || text.includes('nebuliz')) {
+                return getNursingPricingDetails(isTelugu);
+            }
+            // 3: Caregiver & Bedside Attendant
+            if (text === '3' || text.includes('care') || text.includes('కేర్‌టేకర్') || text.includes('attendant')) {
                 return getCaregiverPricingDetails(isTelugu);
             }
-            // 6: Physiotherapy & Doorstep ECG
-            if (text === '6' || text.includes('physio') || text.includes('ecg') || text.includes('ఫిజియో')) {
-                return getPhysioEcgPricingDetails(isTelugu);
+            // 4: 12-Lead Digital Doorstep ECG
+            if (text === '4' || text.includes('ecg') || text.includes('ఈసీజీ')) {
+                return getEcgPricingDetails(isTelugu);
             }
-            // 7: Master Complete Tariff Overview
-            if (text === '7' || text.includes('all') || text.includes('overview') || text.includes('మొత్తం')) {
-                return getCompletePricingOverview(isTelugu);
+            // 5: Physiotherapy at Home
+            if (text === '5' || text.includes('physio') || text.includes('ఫిజియో')) {
+                return getPhysioPricingDetails(isTelugu);
+            }
+            // 6: 24/7 Ambulance Fleet Slabs
+            if (text === '6' || text.includes('ambulance') || text.includes('అంబులెన్స్')) {
+                return getAmbulancePricingDetails(isTelugu);
+            }
+            // 7: Doctor Consultation Rates
+            if (text === '7' || text.includes('doctor') || text.includes('డాక్టర్')) {
+                return getDoctorPricingDetails(isTelugu);
+            }
+            // 8: Hospital Assistance & Bed Booking
+            if (text === '8' || text.includes('hospital') || text.includes('bed') || text.includes('admission') || text.includes('హాస్పిటల్')) {
+                return getHospitalAssistanceDetails(isTelugu);
             }
 
             // Freeform / unrecognized input fallback
@@ -312,19 +316,20 @@ function getHelplineResponse(isTelugu) {
 function getPricingMenuEnglish() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `💰 *AMPLR HEALTH • SERVICE TARIFF GUIDE*\n━━━━━━━━━━━━━━━━━━━━\nStandardized clinical rates for home health visits & tele-consults.\n\nPlease select a category below to view detailed pricing:\n\n1️⃣ 👨‍⚕️ *Doctor Tele-Consultations* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 – ₹2,600)\n3️⃣ 🚑 *24/7 Emergency Ambulance* (From ₹999)\n4️⃣ 🩸 *Diagnostic Lab Tests at Home* (From ₹200)\n5️⃣ 🧓 *Elderly Bedside Caregiver* (3h / 8h / 12h Shifts)\n6️⃣ 🏃‍♂️ *Physiotherapy & Doorstep ECG* (Starts from ₹499)\n7️⃣ 📋 *Complete Tariff Overview* (Master Summary)\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Direct Booking & Real-Time Rates*:\n${WEBSITE_URL}\n━━━━━━━━━━━━━━━━━━━━\n👇 *Tap 'View Rates' below or reply 1 to 7:*`,
+        text: `💰 *AMPLR HEALTH • SERVICE TARIFF GUIDE*\n━━━━━━━━━━━━━━━━━━━━\nStandardized clinical rates for home health visits & tele-consults.\n\nPlease select a category below to view detailed pricing:\n\n1️⃣ 🩸 *Diagnostic Lab Tests at Home* (From ₹200)\n2️⃣ 👩‍⚕️ *Home Nursing Procedures* (₹200 – ₹2,600)\n3️⃣ 🧓 *Elderly Bedside Caregiver* (3h / 8h / 12h Shifts)\n4️⃣ 💓 *12-Lead Digital Doorstep ECG* (Starts from ₹499)\n5️⃣ 🏃‍♂️ *Physiotherapy at Home* (Starts from ₹499)\n6️⃣ 🚑 *24/7 Emergency Ambulance* (From ₹999)\n7️⃣ 👨‍⚕️ *Doctor Tele-Consultations* (₹299 – ₹799)\n8️⃣ 🏥 *Hospital Assistance & Bed Booking* (Free Support)\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Direct Booking & Real-Time Rates*:\n${WEBSITE_URL}\n━━━━━━━━━━━━━━━━━━━━\n👇 *Tap 'View Rates' below or reply 1 to 8:*`,
         listTitle: '💰 View Rates',
         sections: [
             {
                 title: 'Healthcare Pricing',
                 rows: [
-                    { id: '1', title: '1️⃣ Doctor Rates', description: 'Tele-consult by specialty (₹299 - ₹799)' },
-                    { id: '2', title: '2️⃣ Nursing Procedures', description: 'Injections, IV drip, dressing & shifts' },
-                    { id: '3', title: '3️⃣ Ambulance Slabs', description: 'Toofan / Omni / Tempo with O2 & ICU' },
-                    { id: '4', title: '4️⃣ Lab & Blood Tests', description: 'Doorstep tests & health checkups' },
-                    { id: '5', title: '5️⃣ Caregiver Care', description: '3-Hour, 8-Hour & 12-Hour bedside care' },
-                    { id: '6', title: '6️⃣ Physio & ECG', description: 'Physiotherapy & 12-lead ECG from ₹499' },
-                    { id: '7', title: '7️⃣ Complete Overview', description: 'Full price list of all AMPLR services' }
+                    { id: '1', title: '1️⃣ Lab & Blood Tests', description: 'Doorstep tests & health checkups' },
+                    { id: '2', title: '2️⃣ Nursing Procedures', description: 'Injections, IV drip, dressing & nebulization' },
+                    { id: '3', title: '3️⃣ Caregiver Care', description: '3-Hour, 8-Hour & 12-Hour bedside care' },
+                    { id: '4', title: '4️⃣ Doorstep ECG', description: '12-lead digital ECG from ₹499' },
+                    { id: '5', title: '5️⃣ Physiotherapy', description: 'Rehab & pain relief from ₹499' },
+                    { id: '6', title: '6️⃣ Ambulance Slabs', description: 'Toofan / Omni / Tempo with O2 & ICU' },
+                    { id: '7', title: '7️⃣ Doctor Rates', description: 'Tele-consult by specialty (₹299 - ₹799)' },
+                    { id: '8', title: '8️⃣ Hospital Assistance', description: 'Bed booking & admission coordination' }
                 ]
             }
         ]
@@ -334,52 +339,27 @@ function getPricingMenuEnglish() {
 function getPricingMenuTelugu() {
     return {
         type: 'INTERACTIVE_LIST',
-        text: `💰 *AMPLR HEALTH • సేవల ధరల వివరాలు (Tariff)*\n━━━━━━━━━━━━━━━━━━━━\nఇంటి వద్ద వైద్య సేవలకు ప్రామాణిక రేట్లు.\n\nధరల వివరాలను చూడటానికి క్రింది విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 👨‍⚕️ *డాక్టర్ సంప్రదింపుల ధరలు* (₹299 – ₹799)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ధరలు* (₹200 – ₹2,600)\n3️⃣ 🚑 *24/7 అంబులెన్స్ ఛార్జీలు* (₹999 నుండి)\n4️⃣ 🩸 *ల్యాబ్ రక్త పరీక్షలు* (₹200 నుండి)\n5️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్* (3h / 8h / 12h షిఫ్ట్‌లు)\n6️⃣ 🏃‍♂️ *ఫిజియోథెరపీ & ECG* (₹499 నుండి)\n7️⃣ 📋 *మొత్తం సేవల ధరల సారాంశం*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ప్రత్యక్ష ఆన్‌లైన్ బుకింగ్ & లైవ్ రేట్లు*:\n${WEBSITE_URL}\n━━━━━━━━━━━━━━━━━━━━\n👇 *క్రింది 'ధరలు చూడండి' నొక్కండి లేదా 1-7 రిప్లై ఇవ్వండి:*`,
+        text: `💰 *AMPLR HEALTH • సేవల ధరల వివరాలు (Tariff)*\n━━━━━━━━━━━━━━━━━━━━\nఇంటి వద్ద వైద్య సేవలకు ప్రామాణిక రేట్లు.\n\nధరల వివరాలను చూడటానికి క్రింది విభాగాన్ని ఎంచుకోండి:\n\n1️⃣ 🩸 *ల్యాబ్ రక్త పరీక్షలు* (₹200 నుండి)\n2️⃣ 👩‍⚕️ *నర్సింగ్ సేవల ధరలు* (₹200 – ₹2,600)\n3️⃣ 🧓 *సంరక్షకులు / కేర్‌టేకర్* (3h / 8h / 12h షిఫ్ట్‌లు)\n4️⃣ 💓 *12-లీడ్ డోర్‌స్టెప్ ECG* (₹499 నుండి)\n5️⃣ 🏃‍♂️ *ఫిజియోథెరపీ* (₹499 నుండి)\n6️⃣ 🚑 *24/7 అంబులెన్స్ ఛార్జీలు* (₹999 నుండి)\n7️⃣ 👨‍⚕️ *డాక్టర్ సంప్రదింపుల ధరలు* (₹299 – ₹799)\n8️⃣ 🏥 *హాస్పిటల్ సహాయం & బెడ్ బుకింగ్* (ఉచిత సేవ)\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ప్రత్యక్ష ఆన్‌లైన్ బుకింగ్ & లైవ్ రేట్లు*:\n${WEBSITE_URL}\n━━━━━━━━━━━━━━━━━━━━\n👇 *క్రింది 'ధరలు చూడండి' నొక్కండి లేదా 1-8 రిప్లై ఇవ్వండి:*`,
         listTitle: '💰 ధరలు చూడండి',
         sections: [
             {
                 title: 'సేవల ధరల జాబితా',
                 rows: [
-                    { id: '1', title: '1️⃣ డాక్టర్ రేట్లు', description: 'స్పెషలిస్ట్ కన్సల్టేషన్ (₹299 - ₹799)' },
-                    { id: '2', title: '2️⃣ నర్సింగ్ సేవలు', description: 'ఇంజెక్షన్లు, డ్రెస్సింగ్, సెలైన్, షిఫ్ట్‌లు' },
-                    { id: '3', title: '3️⃣ అంబులెన్స్ రేట్లు', description: 'తూఫాన్ / ఓమ్ని / టెంపో (ఆక్సిజన్ & ICU)' },
-                    { id: '4', title: '4️⃣ ల్యాబ్ రక్త పరీక్షలు', description: 'ఇంటి వద్దకే రక్త నమూనా సేకరణ' },
-                    { id: '5', title: '5️⃣ కేర్‌టేకర్ సేవలు', description: '3, 8 & 12 గంటల వృద్ధుల సంరక్షణ' },
-                    { id: '6', title: '6️⃣ ఫిజియో & ECG', description: 'ఫిజియోథెరపీ & 12-లీడ్ ECG (₹499 నుండి)' },
-                    { id: '7', title: '7️⃣ మొత్తం ధరలు', description: 'అన్ని సేవల ధరల పూర్తి వివరాలు' }
+                    { id: '1', title: '1️⃣ ల్యాబ్ రక్త పరీక్షలు', description: 'ఇంటి వద్దకే రక్త నమూనా సేకరణ' },
+                    { id: '2', title: '2️⃣ నర్సింగ్ సేవలు', description: 'ఇంజెక్షన్లు, డ్రెస్సింగ్, సెలైన్, నెబ్యులైజేషన్' },
+                    { id: '3', title: '3️⃣ కేర్‌టేకర్ సేవలు', description: '3, 8 & 12 గంటల వృద్ధుల సంరక్షణ' },
+                    { id: '4', title: '4️⃣ డోర్‌స్టెప్ ECG', description: '12-లీడ్ డిజిటల్ ECG (₹499 నుండి)' },
+                    { id: '5', title: '5️⃣ ఫిజియోథెరపీ', description: 'పునరావాస చికిత్స (₹499 నుండి)' },
+                    { id: '6', title: '6️⃣ అంబులెన్స్ రేట్లు', description: 'తూఫాన్ / ఓమ్ని / టెంపో (ఆక్సిజన్ & ICU)' },
+                    { id: '7', title: '7️⃣ డాక్టర్ రేట్లు', description: 'స్పెషలిస్ట్ కన్సల్టేషన్ (₹299 - ₹799)' },
+                    { id: '8', title: '8️⃣ హాస్పిటల్ సహాయం', description: 'బెడ్ బుకింగ్ & అడ్మిషన్ మార్గదర్శకత్వం' }
                 ]
             }
         ]
     };
 }
 
-function getDoctorPricingDetails(isTelugu) {
-    return {
-        type: 'TEXT',
-        text: isTelugu
-            ? `👨‍⚕️ *డాక్టర్ సంప్రదింపుల ధరల జాబితా*\n_AMPLR Health స్పెషలిస్ట్ ప్యానెల్_\n━━━━━━━━━━━━━━━━━━━━\nస్పెషాలిటీ టెలి-కన్సల్టేషన్ ఫీజులు:\n\n• *ఆయుష్ & న్యూట్రిషన్* — *₹299*\n  _ఆయుర్వేదం, హోమియోపతి, యునాని, డైట్ & పోషకాహారం_\n\n• *జనరల్ స్పెషాలిటీస్* — *₹399*\n  _డెర్మటాలజీ, ఆర్థోపెడిక్స్, ENT, సైకియాట్రీ_\n\n• *ఫెర్టిలిటీ & దీర్ఘకాలిక సంరక్షణ* — *₹499*\n  _ఫెర్టిలిటీ కన్సల్టేషన్ & క్రానిక్ డిసీజ్ కేర్_\n\n• *సూపర్ స్పెషాలిటీస్* — *₹599*\n  _కార్డియాలజీ, న్యూరాలజీ, పల్మోనాలజీ, గ్యాస్ట్రో, యూరాలజీ, IVF_\n\n• *ఆంకాలజీ (క్యాన్సర్ నిపుణులు)* — *₹799*\n  _సమగ్ర క్యాన్సర్ కేర్ కన్సల్టేషన్_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
-            : `👨‍⚕️ *DOCTOR TELE-CONSULTATION TARIFF*\n_AMPLR Health Specialist Panel_\n━━━━━━━━━━━━━━━━━━━━\nSpecialty Consultation Fees:\n\n• *AYUSH & Nutrition* — *₹299*\n  _Ayurveda, Homeopathy, Unani, Clinical Diet & Nutrition_\n\n• *General Specialties* — *₹399*\n  _Dermatology, Orthopedics, ENT, Psychiatry_\n\n• *Fertility & Chronic Care* — *₹499*\n  _Reproductive Health & Chronic Disease Management_\n\n• *Super Specialties* — *₹599*\n  _Cardiology, Neurology, Pulmonology, Gastroenterology, Urology, IVF_\n\n• *Oncology (Cancer Specialist)* — *₹799*\n  _Expert Oncologist Clinical Tele-Consultation_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Consultation Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Doctor Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
-    };
-}
-
-function getNursingPricingDetails(isTelugu) {
-    return {
-        type: 'TEXT',
-        text: isTelugu
-            ? `👩‍⚕️ *నర్సింగ్ సేవల ధరల జాబితా*\n_ఇంటి వద్ద సర్టిఫైడ్ నర్సింగ్ కేర్_\n━━━━━━━━━━━━━━━━━━━━\nక్లినికల్ విజిట్ ప్రొసీజర్స్:\n• *బీపీ & బ్లడ్ షుగర్ మానిటరింగ్* — *₹200*\n• *IM / IV ఇంజెక్షన్ & క్యాన్యులేషన్* — *₹300*\n• *IV ఫ్లూయిడ్ / సెలైన్ డ్రిప్* — *₹500*\n• *గాయం డ్రెస్సింగ్ & క్యాథెటర్ కేర్* — *₹700*\n• *వాస్కులైటిస్ & కాంప్లెక్స్ అల్సర్ కేర్* — *₹900*\n• *మంచంపై ఉన్న రోగుల పరిశుభ్రత & ట్యూబ్ కేర్* — *₹700*\n\nడెడికేటెడ్ అవర్లీ నర్స్ షిఫ్ట్‌లు:\n• *షార్ట్ విజిట్ (1 నుండి 3 గంటలు)* — *₹700*\n• *హాఫ్-డే షిఫ్ట్ (1 నుండి 6 గంటలు)* — *₹1,400*\n• *ఫుల్-డే డే/నైట్ షిఫ్ట్ (1 నుండి 12 గంటలు)* — *₹2,600*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ నర్సింగ్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 నర్సింగ్ డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
-            : `👩‍⚕️ *HOME NURSING PROCEDURES & SHIFTS*\n_Certified Doorstep Nursing Care_\n━━━━━━━━━━━━━━━━━━━━\nClinical Visit Procedures:\n• *BP & Blood Sugar Monitoring* — *₹200*\n• *IM / IV Injection & Cannulation* — *₹300*\n• *IV Fluid / Saline Infusion* — *₹500*\n• *Wound Dressing & Foley Catheter* — *₹700*\n• *Vasculitis & Complex Ulcer Care* — *₹900*\n• *Bedridden Hygiene & Ryle's Tube* — *₹700*\n\nDedicated Hourly Nursing Shifts:\n• *Short Visit (1 to 3 Hours)* — *₹700*\n• *Half-Day Shift (1 to 6 Hours)* — *₹1,400*\n• *Full-Day Shift (1 to 12 Hours)* — *₹2,600*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Home Nurse Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Nursing Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
-    };
-}
-
-function getAmbulancePricingDetails(isTelugu) {
-    return {
-        type: 'TEXT',
-        text: isTelugu
-            ? `🚑 *24/7 ఎమర్జెన్సీ అంబులెన్స్ ఛార్జీలు*\n_వేగవంతమైన డిస్పాచ్ & ICU అంబులెన్స్ ఫ్లీట్_\n━━━━━━━━━━━━━━━━━━━━\n1️⃣ *తూఫాన్ / ఓమ్ని A/C (రోగి రవాణా)*\n• ప్రారంభ ధర: *₹1,099 నుండి*\n\n2️⃣ *తూఫాన్ / ఓమ్ని Non A/C (రోగి రవాణా)*\n• ప్రారంభ ధర: *₹999 నుండి*\n\n3️⃣ *టెంపో ట్రావెలర్ A/C (విశాలమైన ఫ్లీట్)*\n• ప్రారంభ ధర: *₹1,599 నుండి*\n\n➕ *మెడికల్ లైఫ్-సపోర్ట్ పరికరాలు*:\n• పారామెడిక్ సిబ్బంది: *+₹1,500*\n• ఆక్సిజన్ సపోర్ట్: *+₹1,500*\n• అడ్వాన్స్డ్ ICU వెంటిలేటర్: *+₹4,500*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 అత్యవసర డిస్పాచ్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
-            : `🚑 *24/7 EMERGENCY AMBULANCE TARIFF*\n_Rapid Dispatch Transport & ICU Fleet_\n━━━━━━━━━━━━━━━━━━━━\n1️⃣ *Toofan / Omni A/C (Patient Transport)*\n• Starts from: *₹1,099*\n\n2️⃣ *Toofan / Omni Non A/C (Patient Transport)*\n• Starts from: *₹999*\n\n3️⃣ *Tempo Traveller A/C (Spacious Fleet)*\n• Starts from: *₹1,599*\n\n➕ *Medical Life-Support Add-ons*:\n• Paramedic Attendant: *+₹1,500*\n• Oxygen Support: *+₹1,500*\n• Advanced ICU Ventilator: *+₹4,500*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Transport Online*:\n${WEBSITE_URL}\n\n📞 *Immediate 24/7 Dispatch*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
-    };
-}
-
+// 1. Lab Diagnostics
 function getLabPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
@@ -389,6 +369,17 @@ function getLabPricingDetails(isTelugu) {
     };
 }
 
+// 2. Home Nursing
+function getNursingPricingDetails(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `👩‍⚕️ *నర్సింగ్ సేవల ధరల జాబితా*\n_ఇంటి వద్ద సర్టిఫైడ్ నర్సింగ్ కేర్_\n━━━━━━━━━━━━━━━━━━━━\nక్లినికల్ విజిట్ ప్రొసీజర్స్:\n• *బీపీ & బ్లడ్ షుగర్ మానిటరింగ్* — *₹200*\n• *IM / IV ఇంజెక్షన్ & క్యాన్యులేషన్* — *₹300*\n• *నెబ్యులైజేషన్ కేర్ (Nebulization)* — *₹300*\n• *IV ఫ్లూయిడ్ / సెలైన్ డ్రిప్* — *₹500*\n• *గాయం డ్రెస్సింగ్ & క్యాథెటర్ కేర్* — *₹700*\n• *వాస్కులైటిస్ & కాంప్లెక్స్ అల్సర్ కేర్* — *₹900*\n• *మంచంపై ఉన్న రోగుల పరిశుభ్రత & ట్యూబ్ కేర్* — *₹700*\n\nడెడికేటెడ్ అవర్లీ నర్స్ షిఫ్ట్‌లు:\n• *షార్ట్ విజిట్ (1 నుండి 3 గంటలు)* — *₹700*\n• *హాఫ్-డే షిఫ్ట్ (1 నుండి 6 గంటలు)* — *₹1,400*\n• *ఫుల్-డే డే/నైట్ షిఫ్ట్ (1 నుండి 12 గంటలు)* — *₹2,600*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ నర్సింగ్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 నర్సింగ్ డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `👩‍⚕️ *HOME NURSING PROCEDURES & SHIFTS*\n_Certified Doorstep Nursing Care_\n━━━━━━━━━━━━━━━━━━━━\nClinical Visit Procedures:\n• *BP & Blood Sugar Monitoring* — *₹200*\n• *IM / IV Injection & Cannulation* — *₹300*\n• *Nebulization Care* — *₹300*\n• *IV Fluid / Saline Infusion* — *₹500*\n• *Wound Dressing & Foley Catheter* — *₹700*\n• *Vasculitis & Complex Ulcer Care* — *₹900*\n• *Bedridden Hygiene & Ryle's Tube* — *₹700*\n\nDedicated Hourly Nursing Shifts:\n• *Short Visit (1 to 3 Hours)* — *₹700*\n• *Half-Day Shift (1 to 6 Hours)* — *₹1,400*\n• *Full-Day Shift (1 to 12 Hours)* — *₹2,600*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Home Nurse Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Nursing Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+    };
+}
+
+// 3. Bedside Caregiver
 function getCaregiverPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
@@ -398,21 +389,53 @@ function getCaregiverPricingDetails(isTelugu) {
     };
 }
 
-function getPhysioEcgPricingDetails(isTelugu) {
+// 4. Doorstep 12-Lead ECG
+function getEcgPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `🏃‍♂️ *ఫిజియోథెరపీ & 💓 12-లీడ్ డోర్‌స్టెప్ ECG*\n_మీ ఇంటి వద్దకే నిపుణుల వైద్య సేవలు_\n━━━━━━━━━━━━━━━━━━━━\n• 🏃‍♂️ *ఫిజియోథెరపీ హోమ్ సెషన్* — *₹499 నుండి*\n  _సమయం: 45 నిమిషాలు_\n  _పక్షవాతం, ఆపరేషన్ తర్వాత రికవరీ, కీళ్లు/వెన్నెముక నొప్పుల పునరావాస చికిత్స._\n\n• 💓 *12-లీడ్ డిజిటల్ డోర్‌స్టెప్ ECG* — *₹499 నుండి*\n  _సర్టిఫైడ్ క్లినికల్ టెక్నీషియన్ ద్వారా ఇంటి వద్ద తక్షణ పరీక్ష మరియు కార్డియాలజిస్ట్ వెరిఫైడ్ డిజిటల్ రిపోర్ట్._\n  ⚠️ *గమనిక*: _ధరలు అత్యవసరత, దూరం, లభ్యత మరియు డే/నైట్ సమయాలపై ఆధారపడి ఉంటాయి (Prices depend on urgency, distance, availability, day and night timings)._\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 అపాయింట్‌మెంట్ డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
-            : `🏃‍♂️ *PHYSIOTHERAPY & 💓 12-LEAD ECG*\n_Expert Clinical Care at Your Doorstep_\n━━━━━━━━━━━━━━━━━━━━\n• 🏃‍♂️ *Physiotherapy Home Session* — Starts from *₹499*\n  _Duration: 45 Minutes_\n  _Post-stroke rehab, paralysis care, joint/spine pain therapy, post-surgical mobility recovery._\n\n• 💓 *12-Lead Digital Doorstep ECG* — Starts from *₹499*\n  _Performed at home by trained clinical technician with instant cardiologist-verified digital report._\n  ⚠️ *Note*: _Prices depend on urgency, distance, availability, day and night timings._\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Session Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Scheduling Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+            ? `💓 *12-లీడ్ డిజిటల్ డోర్‌స్టెప్ ECG*\n_మీ ఇంటి వద్దకే తక్షణ కార్డియాక్ స్క్రీనింగ్_\n━━━━━━━━━━━━━━━━━━━━\n• *12-లీడ్ డిజిటల్ డోర్‌స్టెప్ ECG* — *₹499 నుండి*\n  _సర్టిఫైడ్ క్లినికల్ టెక్నీషియన్ ద్వారా ఇంటి వద్ద తక్షణ పరీక్ష మరియు కార్డియాలజిస్ట్ వెరిఫైడ్ డిజిటల్ రిపోర్ట్._\n\n⚠️ *గమనిక*: _ధరలు అత్యవసరత, దూరం, లభ్యత మరియు డే/నైట్ సమయాలపై ఆధారపడి ఉంటాయి (Prices depend on urgency, distance, availability, day and night timings)._\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 ECG డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `💓 *12-LEAD DIGITAL DOORSTEP ECG*\n_Instant Cardiac Screening at Your Home_\n━━━━━━━━━━━━━━━━━━━━\n• *12-Lead Digital Doorstep ECG* — Starts from *₹499*\n  _Conducted at home by trained clinical technician with instant cardiologist-verified digital report._\n\n⚠️ *Note*: _Prices depend on urgency, distance, availability, day and night timings._\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book ECG Online*:\n${WEBSITE_URL}\n\n📞 *24/7 ECG Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
     };
 }
 
-function getCompletePricingOverview(isTelugu) {
+// 5. Physiotherapy
+function getPhysioPricingDetails(isTelugu) {
     return {
         type: 'TEXT',
         text: isTelugu
-            ? `📋 *AMPLR HEALTH • సేవల ధరల పూర్తి సారాంశం*\n_ఆసుపత్రి సేవలను మీ ఇంటికే అందిస్తుంది_\n━━━━━━━━━━━━━━━━━━━━\nసేవల రేట్ల సారాంశం:\n• 👨‍⚕️ *డాక్టర్ సంప్రదింపులు* — *₹299 నుండి ₹799*\n• 👩‍⚕️ *నర్సింగ్ సేవలు* — *₹200 నుండి ₹900* (షిఫ్ట్‌లు: *₹700 నుండి ₹2,600*)\n• 🚑 *24/7 అంబులెన్స్* — *₹999 నుండి* (O2 & ICU వెంటిలేటర్)\n• 🩸 *ల్యాబ్ రక్త పరీక్షలు* — *₹200 నుండి* (ప్యాకేజీలు *₹1,299*)\n• 🧓 *సంరక్షకులు / అటెండెంట్* — *3h, 8h & 12h* షిఫ్ట్‌లు\n• 🏃‍♂️ *ఫిజియోథెరపీ* — *₹499 నుండి*\n• 💓 *12-లీడ్ డోర్‌స్టెప్ ECG* — *₹499 నుండి* _(సమయం/దూరం ఆధారంగా)_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ప్రత్యక్ష ఆన్‌లైన్ బుకింగ్ & లైవ్ ప్యాకేజీలు*:\n${WEBSITE_URL}\n\n📞 *అధికారిక 24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
-            : `📋 *AMPLR HEALTH • MASTER TARIFF OVERVIEW*\n_Hospital Care Brought to Your Home_\n━━━━━━━━━━━━━━━━━━━━\nService Rate Summary:\n• 👨‍⚕️ *Doctor Consultations* — *₹299 to ₹799*\n• 👩‍⚕️ *Nursing Procedures* — *₹200 to ₹900* (Shifts: *₹700 to ₹2,600*)\n• 🚑 *24/7 Ambulance* — From *₹999* (O2 & ICU available)\n• 🩸 *Lab Diagnostics* — From *₹200* (Packages from *₹1,299*)\n• 🧓 *Bedside Caregiver* — Available in *3h, 8h & 12h* shifts\n• 🏃‍♂️ *Physiotherapy* — Starts from *₹499*\n• 💓 *12-Lead ECG* — Starts from *₹499* _(Subject to urgency, distance & timings)_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Direct Online Booking & Live Packages*:\n${WEBSITE_URL}\n\n📞 *Official 24/7 Helpline*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+            ? `🏃‍♂️ *ఫిజియోథెరపీ హోమ్ కేర్*\n_నిపుణులైన ఫిజియోథెరపిస్ట్ ద్వారా పునరావాస చికిత్స_\n━━━━━━━━━━━━━━━━━━━━\n• *ఫిజియోథెరపీ హోమ్ సెషన్* — *₹499 నుండి*\n  _సమయం: 45 నిమిషాలు_\n\nచికిత్స రంగాలు:\n• పక్షవాతం & న్యూరో పునరావాసం (Stroke / Paralysis Rehab)\n• ఆర్థోపెడిక్, కీళ్ళు & మోకాలి నొప్పులు\n• వెన్నెముక, మెడ & నడుము నొప్పి ఉపశమనం\n• శస్త్రచికిత్స తర్వాత మొబిలిటీ రికవరీ (Post-op Mobility)\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 అపాయింట్‌మెంట్ డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `🏃‍♂️ *PHYSIOTHERAPY AT HOME*\n_Expert In-Home Physical Rehabilitation_\n━━━━━━━━━━━━━━━━━━━━\n• *Physiotherapy Home Session* — Starts from *₹499*\n  _Duration: 45 Minutes_\n\nClinical Specializations:\n• Neuro Rehabilitation & Stroke / Paralysis recovery\n• Orthopedic, Joint & Knee pain management\n• Spine, Back & Cervical pain relief\n• Post-surgical recovery & mobility rehabilitation\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Physiotherapist Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Physio Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+    };
+}
+
+// 6. Ambulance Services
+function getAmbulancePricingDetails(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `🚑 *24/7 ఎమర్జెన్సీ అంబులెన్స్ ఛార్జీలు*\n_వేగవంతమైన డిస్పాచ్ & ICU అంబులెన్స్ ఫ్లీట్_\n━━━━━━━━━━━━━━━━━━━━\n1️⃣ *తూఫాన్ / ఓమ్ని A/C (రోగి రవాణా)*\n• ప్రారంభ ధర: *₹1,099 నుండి*\n\n2️⃣ *తూఫాన్ / ఓమ్ని Non A/C (రోగి రవాణా)*\n• ప్రారంభ ధర: *₹999 నుండి*\n\n3️⃣ *టెంపో ట్రావెలర్ A/C (విశాలమైన ఫ్లీట్)*\n• ప్రారంభ ధర: *₹1,599 నుండి*\n\n➕ *మెడికల్ లైఫ్-సపోర్ట్ పరికరాలు*:\n• పారామెడిక్ సిబ్బంది: *+₹1,500*\n• ఆక్సిజన్ సపోర్ట్: *+₹1,500*\n• అడ్వాన్స్డ్ ICU వెంటిలేటర్: *+₹4,500*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 అత్యవసర డిస్పాచ్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `🚑 *24/7 EMERGENCY AMBULANCE TARIFF*\n_Rapid Dispatch Transport & ICU Fleet_\n━━━━━━━━━━━━━━━━━━━━\n1️⃣ *Toofan / Omni A/C (Patient Transport)*\n• Starts from: *₹1,099*\n\n2️⃣ *Toofan / Omni Non A/C (Patient Transport)*\n• Starts from: *₹999*\n\n3️⃣ *Tempo Traveller A/C (Spacious Fleet)*\n• Starts from: *₹1,599*\n\n➕ *Medical Life-Support Add-ons*:\n• Paramedic Attendant: *+₹1,500*\n• Oxygen Support: *+₹1,500*\n• Advanced ICU Ventilator: *+₹4,500*\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Transport Online*:\n${WEBSITE_URL}\n\n📞 *Immediate 24/7 Dispatch*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+    };
+}
+
+// 7. Doctor Consultations
+function getDoctorPricingDetails(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `👨‍⚕️ *డాక్టర్ సంప్రదింపుల ధరల జాబితా*\n_AMPLR Health స్పెషలిస్ట్ ప్యానెల్_\n━━━━━━━━━━━━━━━━━━━━\nస్పెషాలిటీ టెలి-కన్సల్టేషన్ ఫీజులు:\n\n• *ఆయుష్ & న్యూట్రిషన్* — *₹299*\n  _ఆయుర్వేదం, హోమియోపతి, యునాని, డైట్ & పోషకాహారం_\n\n• *జనరల్ స్పెషాలిటీస్* — *₹399*\n  _డెర్మటాలజీ, ఆర్థోపెడిక్స్, ENT, సైకియాట్రీ_\n\n• *ఫెర్టిలిటీ & దీర్ఘకాలిక సంరక్షణ* — *₹499*\n  _ఫెర్టిలిటీ కన్సల్టేషన్ & క్రానిక్ డిసీజ్ కేర్_\n\n• *సూపర్ స్పెషాలిటీస్* — *₹599*\n  _కార్డియాలజీ, న్యూరాలజీ, పల్మోనాలజీ, గ్యాస్ట్రో, యూరాలజీ, IVF_\n\n• *ఆంకాలజీ (క్యాన్సర్ నిపుణులు)* — *₹799*\n  _సమగ్ర క్యాన్సర్ కేర్ కన్సల్టేషన్_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ బుకింగ్*: ${WEBSITE_URL}\n📞 *24/7 హెల్ప్‌లైన్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `👨‍⚕️ *DOCTOR TELE-CONSULTATION TARIFF*\n_AMPLR Health Specialist Panel_\n━━━━━━━━━━━━━━━━━━━━\nSpecialty Consultation Fees:\n\n• *AYUSH & Nutrition* — *₹299*\n  _Ayurveda, Homeopathy, Unani, Clinical Diet & Nutrition_\n\n• *General Specialties* — *₹399*\n  _Dermatology, Orthopedics, ENT, Psychiatry_\n\n• *Fertility & Chronic Care* — *₹499*\n  _Reproductive Health & Chronic Disease Management_\n\n• *Super Specialties* — *₹599*\n  _Cardiology, Neurology, Pulmonology, Gastroenterology, Urology, IVF_\n\n• *Oncology (Cancer Specialist)* — *₹799*\n  _Expert Oncologist Clinical Tele-Consultation_\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Book Consultation Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Doctor Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
+    };
+}
+
+// 8. Hospital Assistance & Bed Booking
+function getHospitalAssistanceDetails(isTelugu) {
+    return {
+        type: 'TEXT',
+        text: isTelugu
+            ? `🏥 *హాస్పిటల్ అడ్మిషన్ & బెడ్ బుకింగ్ సహాయం*\n_AMPLR Health పార్టనర్ నెట్‌వర్క్ సహాయం_\n━━━━━━━━━━━━━━━━━━━━\nసేవల వివరాలు:\n• 🏥 *హాస్పిటల్ బెడ్ & ICU లభ్యత తనిఖీ* — *ఉచితం (₹0)*\n• 📋 *అడ్మిషన్ మార్గదర్శకత్వం & ప్రాధాన్యత ప్రవేశం* — *ఉచితం (₹0)*\n• 💳 *క్యాష్‌లెస్ ఇన్సూరెన్స్ & TPA డెస్క్ సపోర్ట్*\n• 👨‍⚕️ *టాప్ స్పెషలిస్ట్ డాక్టర్ల OPD అపాయింట్‌మెంట్లు*\n\nహైదరాబాద్ మరియు ఆంధ్రప్రదేశ్ అంతటా ప్రముఖ సూపర్ స్పెషాలిటీ ఆసుపత్రులతో భాగస్వామ్యం.\n━━━━━━━━━━━━━━━━━━━━\n🌐 *ఆన్‌లైన్ రిక్వెస్ట్*: ${WEBSITE_URL}\n📞 *24/7 హాస్పిటల్ డెస్క్*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _చాట్ రీస్టార్ట్ కోసం *0* రిప్లై ఇవ్వండి_`
+            : `🏥 *HOSPITAL ADMISSION & BED ASSISTANCE*\n_AMPLR Health Partner Care Network_\n━━━━━━━━━━━━━━━━━━━━\nSupport Services:\n• 🏥 *Bed Availability & ICU Tracking* — *Complimentary (₹0)*\n• 📋 *Priority Admission Coordination* — *Complimentary (₹0)*\n• 💳 *Cashless Insurance & TPA Desk Help*\n• 👨‍⚕️ *Top Specialist OPD Appointments*\n\nEmpaneled with premier super-specialty partner hospitals across Hyderabad & AP for hassle-free care.\n━━━━━━━━━━━━━━━━━━━━\n🌐 *Request Assistance Online*:\n${WEBSITE_URL}\n\n📞 *24/7 Hospital Desk*: *${HELPLINE}*\n━━━━━━━━━━━━━━━━━━━━\n↩️ _Reply *0* to Restart Chat_`
     };
 }
 

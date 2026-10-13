@@ -10,18 +10,30 @@ const DB_FILE = process.env.VERCEL ? '/tmp/live_db.json' : path.join(__dirname, 
 export const DEFAULT_SERVICES = [
     {
         id: '1',
+        name: 'Lab - Blood Collection at Home',
+        category: 'lab',
+        code: 'LAB',
+        icon: 'FlaskConical',
+        basePrice: 200,
+        priceDescription: 'Starting from ₹200 (Free home collection above ₹800)',
+        slots: ['07:00 AM (Fasting)', '08:30 AM', '10:00 AM', '04:00 PM'],
+        description: 'CBC, Diabetes Profile, Thyroid, Lipid, Blood Sugar, Full Body Checkup.',
+        active: true
+    },
+    {
+        id: '2',
         name: 'Nursing Services at Home',
         category: 'nursing',
         code: 'NURSE',
         icon: 'Stethoscope',
         basePrice: 800,
-        priceDescription: '₹800 per visit / ₹1,500 for 12-hour shift',
+        priceDescription: 'Procedures ₹200–₹900 / Shifts ₹700–₹2,600',
         slots: ['09:00 AM', '11:00 AM', '02:00 PM', '05:00 PM', '08:00 PM'],
-        description: 'Dressing, Injections, IV Infusion, Wound Care, Post-surgery Nursing.',
+        description: 'Dressing, Injections, IV Infusion, Nebulization Care, Wound Care, Post-surgery Nursing.',
         active: true
     },
     {
-        id: '2',
+        id: '3',
         name: 'Caregiver / Caretaker at Home',
         category: 'caretaker',
         code: 'CARE',
@@ -33,31 +45,7 @@ export const DEFAULT_SERVICES = [
         active: true
     },
     {
-        id: '3',
-        name: 'Physiotherapy at Home',
-        category: 'physio',
-        code: 'PHYSIO',
-        icon: 'Activity',
-        basePrice: 499,
-        priceDescription: 'Starts from ₹499 per session',
-        slots: ['09:00 AM', '11:00 AM', '03:00 PM', '06:00 PM'],
-        description: 'Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.',
-        active: true
-    },
-    {
         id: '4',
-        name: 'Lab - Blood Collection at Home',
-        category: 'lab',
-        code: 'LAB',
-        icon: 'FlaskConical',
-        basePrice: 500,
-        priceDescription: 'Starting from ₹500 (Free home collection above ₹800)',
-        slots: ['07:00 AM (Fasting)', '08:30 AM', '10:00 AM', '04:00 PM'],
-        description: 'CBC, Diabetes Profile, Thyroid, Lipid, Blood Sugar, Full Body Checkup.',
-        active: true
-    },
-    {
-        id: '5',
         name: 'ECG at Home',
         category: 'ecg',
         code: 'ECG',
@@ -69,19 +57,19 @@ export const DEFAULT_SERVICES = [
         active: true
     },
     {
-        id: '6',
-        name: 'Doctor Consultation (Specialist)',
-        category: 'doctor',
-        code: 'DOC',
-        icon: 'Stethoscope',
+        id: '5',
+        name: 'Physiotherapy at Home',
+        category: 'physio',
+        code: 'PHYSIO',
+        icon: 'Activity',
         basePrice: 499,
-        priceDescription: '₹299 to ₹799 based on medical specialty',
-        slots: ['10:00 AM', '01:00 PM', '04:00 PM', '07:00 PM'],
-        description: 'Dermatology, Cardiology, Orthopedics, Oncology, General Medicine.',
+        priceDescription: 'Starts from ₹499 per session',
+        slots: ['09:00 AM', '11:00 AM', '03:00 PM', '06:00 PM'],
+        description: 'Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.',
         active: true
     },
     {
-        id: '7',
+        id: '6',
         name: 'Ambulance Services (24/7)',
         category: 'ambulance',
         code: 'AMB',
@@ -93,8 +81,20 @@ export const DEFAULT_SERVICES = [
         active: true
     },
     {
+        id: '7',
+        name: 'Doctor Consultation (Specialist)',
+        category: 'doctor',
+        code: 'DOC',
+        icon: 'Stethoscope',
+        basePrice: 299,
+        priceDescription: '₹299 to ₹799 based on medical specialty',
+        slots: ['10:00 AM', '01:00 PM', '04:00 PM', '07:00 PM'],
+        description: 'Dermatology, Cardiology, Orthopedics, Oncology, General Medicine.',
+        active: true
+    },
+    {
         id: '8',
-        name: 'Hospital / Clinic Referral',
+        name: 'Hospital / Clinic Referral & Bed Booking',
         category: 'hospital',
         code: 'HOSP',
         icon: 'Activity',
