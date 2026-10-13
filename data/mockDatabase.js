@@ -38,8 +38,8 @@ export const DEFAULT_SERVICES = [
         category: 'physio',
         code: 'PHYSIO',
         icon: 'Activity',
-        basePrice: 900,
-        priceDescription: '₹900 per 45-min session',
+        basePrice: 499,
+        priceDescription: 'Starts from ₹499 per session',
         slots: ['09:00 AM', '11:00 AM', '03:00 PM', '06:00 PM'],
         description: 'Stroke rehab, Joint pain, Post-fracture therapy, Back pain relief.',
         active: true
@@ -62,10 +62,10 @@ export const DEFAULT_SERVICES = [
         category: 'ecg',
         code: 'ECG',
         icon: 'HeartPulse',
-        basePrice: 1100,
-        priceDescription: '₹1,100 per test with instant report',
+        basePrice: 499,
+        priceDescription: 'Starts from ₹499 (Prices depend on urgency, distance, availability, day/night timings)',
         slots: ['08:00 AM', '10:30 AM', '02:00 PM', '05:30 PM'],
-        description: '12-Lead Digital ECG conducted at your doorstep by trained technician.',
+        description: '12-Lead Digital ECG conducted at your doorstep by trained technician. Prices depend on urgency, distance, availability, day and night timings.',
         active: true
     },
     {
@@ -86,8 +86,8 @@ export const DEFAULT_SERVICES = [
         category: 'ambulance',
         code: 'AMB',
         icon: 'Truck',
-        basePrice: 1400,
-        priceDescription: 'Starting from ₹1,400 (Omni/Toofan) to ₹1,800 (Tempo)',
+        basePrice: 999,
+        priceDescription: 'Starting from ₹999 (Non A/C) / ₹1,099 (A/C) / ₹1,599 (Tempo)',
         slots: ['24/7 Immediate Dispatch', 'Scheduled Patient Transport'],
         description: 'Basic Life Support (BLS) & Advance Cardiac Life Support (ACLS) Ambulances.',
         active: true
